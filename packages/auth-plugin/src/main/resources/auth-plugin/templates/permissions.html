@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>权限管理</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      color: #2c3e50;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .breadcrumb {
+      font-size: 14px;
+      color: #7f8c8d;
+      margin-bottom: 10px;
+    }
+
+    .breadcrumb a {
+      color: #3498db;
+      text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+      text-decoration: underline;
+    }
+
+    .breadcrumb span {
+      margin: 0 10px;
+      color: #95a5a6;
+    }
+
+    .search-section {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .search-form {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #3498db;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn:hover {
+      background-color: #2980b9;
+    }
+
+    .btn-primary {
+      background-color: #27ae60;
+    }
+
+    .btn-primary:hover {
+      background-color: #229954;
+    }
+
+    .user-list {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .user-item {
+      padding: 20px;
+      border-bottom: 1px solid #e0e0e0;
+      transition: background-color 0.3s;
+    }
+
+    .user-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .user-item:last-child {
+      border-bottom: none;
+    }
+
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .user-info h3 {
+      color: #2c3e50;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    .user-id {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #7f8c8d;
+    }
+
+    .permissions-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .permission-tag {
+      background-color: #e8f4f8;
+      color: #2980b9;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .permission-tag.granted {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .permission-remove {
+      cursor: pointer;
+      font-weight: bold;
+      color: #e74c3c;
+      margin-left: 5px;
+    }
+
+    .permission-remove:hover {
+      color: #c0392b;
+    }
+
+    .add-permission {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      align-items: center;
+    }
+
+    .permission-select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #7f8c8d;
+    }
+
+    .empty-state h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #95a5a6;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #7f8c8d;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .alert {
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="/page/auth/">权限管理</a>
+      <span>›</span>
+      <span>所有用户权限</span>
+    </div>
+
+    <div class="header">
+      <h1>权限管理</h1>
+      <p>管理系统中所有用户的权限配置</p>
+    </div>
+
+    <div class="search-section">
+      <form class="search-form" onsubmit="searchUser(event)">
+        <input type="text" class="search-input" id="searchInput" placeholder="输入用户ID查找用户..." />
+        <button type="submit" class="btn">搜索</button>
+        <button type="button" class="btn btn-primary" onclick="loadAllUsers()">刷新列表</button>
+      </form>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div id="userListContainer">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>加载中...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const availablePermissions = [
+      "user.create", "user.read", "user.update", "user.delete",
+      "admin.access", "admin.manage",
+      "system.config", "system.monitor",
+      "report.view", "report.export"
+    ];
+
+    // 存储用户权限数据
+    let usersPermissions = new Map();
+
+    function showAlert(message, type) {
+      const alertContainer = document.getElementById('alertContainer');
+      const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+      alertContainer.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+
+      setTimeout(() => {
+        alertContainer.innerHTML = '';
+      }, 3000);
+    }
+
+    function loadAllUsers() {
+      // 从用户服务获取所有用户
+      fetch('/users')
+        .then(response => response.json())
+        .then(data => {
+          const users = [];
+
+          // 添加默认用户
+          users.push({ id: '123', name: 'John Doe' });
+
+          // 添加动态用户
+          if (data && typeof data === 'object') {
+            Object.entries(data).forEach(([userId, userInfo]) => {
+              if (userInfo && typeof userInfo === 'object') {
+                users.push({
+                  id: userInfo.id || userId,
+                  name: userInfo.name || 'Unknown'
+                });
+              }
+            });
+          }
+
+          // 加载每个用户的权限
+          loadUsersPermissions(users);
+        })
+        .catch(error => {
+          console.error('Error loading users:', error);
+          showAlert('加载用户列表失败', 'error');
+        });
+    }
+
+    function loadUsersPermissions(users) {
+      const promises = users.map(user =>
+        fetch(`/auth/permissions/${user.id}`)
+          .then(response => response.json())
+          .then(data => {
+            usersPermissions.set(user.id, {
+              name: user.name,
+              permissions: data.permissions || []
+            });
+          })
+          .catch(() => {
+            usersPermissions.set(user.id, {
+              name: user.name,
+              permissions: []
+            });
+          })
+      );
+
+      Promise.all(promises).then(() => {
+        displayUsers();
+      });
+    }
+
+    function displayUsers() {
+      const container = document.getElementById('userListContainer');
+
+      if (usersPermissions.size === 0) {
+        container.innerHTML = `
+                    <div class="user-list">
+                        <div class="empty-state">
+                            <h2>暂无用户数据</h2>
+                            <p>系统中还没有任何用户</p>
+                        </div>
+                    </div>
+                `;
+        return;
+      }
+
+      let html = '<div class="user-list">';
+
+      usersPermissions.forEach((userData, userId) => {
+        html += createUserItem(userId, userData);
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function createUserItem(userId, userData) {
+      const permissionsHtml = userData.permissions.map(permission => `
+                <span class="permission-tag granted">
+                    ${permission}
+                    <span class="permission-remove" onclick="revokePermission('${userId}', '${permission}')">×</span>
+                </span>
+            `).join('');
+
+      const unusedPermissions = availablePermissions.filter(p =>
+        !userData.permissions.includes(p)
+      );
+
+      const optionsHtml = unusedPermissions.map(p =>
+        `<option value="${p}">${p}</option>`
+      ).join('');
+
+      return `
+                <div class="user-item" id="user-${userId}">
+                    <div class="user-header">
+                        <div class="user-info">
+                            <h3>${userData.name}</h3>
+                            <div class="user-id">ID: ${userId}</div>
+                        </div>
+                        <a href="/page/auth/user/${userId}" class="btn">查看详情</a>
+                    </div>
+                    <div class="permissions-container">
+                        ${permissionsHtml || '<span style="color: #7f8c8d;">暂无权限</span>'}
+                    </div>
+                    <div class="add-permission">
+                        <select class="permission-select" id="select-${userId}">
+                            <option value="">选择权限...</option>
+                            ${optionsHtml}
+                        </select>
+                        <button class="btn btn-primary" onclick="grantPermission('${userId}')">
+                            授予权限
+                        </button>
+                    </div>
+                </div>
+            `;
+    }
+
+    function grantPermission(userId) {
+      const select = document.getElementById(`select-${userId}`);
+      const permission = select.value;
+
+      if (!permission) {
+        showAlert('请选择要授予的权限', 'error');
+        return;
+      }
+
+      fetch(`/auth/permissions/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ permission })
+      })
+        .then(response => {
+          if (!response.ok) throw new Error('授权失败');
+          return response.json();
+        })
+        .then(() => {
+          showAlert('权限授予成功', 'success');
+          // 更新本地数据
+          const userData = usersPermissions.get(userId);
+          if (userData) {
+            userData.permissions.push(permission);
+            // 重新渲染该用户
+            const userElement = document.getElementById(`user-${userId}`);
+            userElement.outerHTML = createUserItem(userId, userData);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showAlert('授予权限失败', 'error');
+        });
+    }
+
+    function revokePermission(userId, permission) {
+      if (!confirm(`确定要撤销用户 ${userId} 的权限 ${permission} 吗？`)) {
+        return;
+      }
+
+      fetch(`/auth/permissions/${userId}/${permission}`, {
+        method: 'DELETE'
+      })
+        .then(response => {
+          if (!response.ok) throw new Error('撤销失败');
+          return response.json();
+        })
+        .then(() => {
+          showAlert('权限撤销成功', 'success');
+          // 更新本地数据
+          const userData = usersPermissions.get(userId);
+          if (userData) {
+            userData.permissions = userData.permissions.filter(p => p !== permission);
+            // 重新渲染该用户
+            const userElement = document.getElementById(`user-${userId}`);
+            userElement.outerHTML = createUserItem(userId, userData);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showAlert('撤销权限失败', 'error');
+        });
+    }
+
+    function searchUser(event) {
+      event.preventDefault();
+      const userId = document.getElementById('searchInput').value.trim();
+
+      if (!userId) {
+        loadAllUsers();
+        return;
+      }
+
+      // 查找特定用户
+      fetch(`/auth/permissions/${userId}`)
+        .then(response => {
+          if (!response.ok) throw new Error('用户不存在');
+          return response.json();
+        })
+        .then(data => {
+          usersPermissions.clear();
+          usersPermissions.set(userId, {
+            name: `用户 ${userId}`,
+            permissions: data.permissions || []
+          });
+          displayUsers();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showAlert('未找到该用户', 'error');
+        });
+    }
+
+    // 页面加载时初始化
+    window.onload = function () {
+      loadAllUsers();
+    };
+  </script>
+</body>
+
+</html>

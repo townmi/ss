@@ -1,0 +1,2 @@
+# This file ensures the plugins directory is tracked by Git
+# Actual plugin JARs will be ignored per .gitignore rules 

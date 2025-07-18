@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理插件</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .hero p {
+      font-size: 20px;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .feature-card {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .feature-card h3 {
+      color: #2c3e50;
+      font-size: 24px;
+      margin-bottom: 15px;
+    }
+
+    .feature-card p {
+      color: #7f8c8d;
+      margin-bottom: 20px;
+    }
+
+    .feature-card a {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #3498db;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+
+    .feature-card a:hover {
+      background-color: #2980b9;
+    }
+
+    .api-section {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      margin-bottom: 40px;
+    }
+
+    .api-section h2 {
+      color: #2c3e50;
+      font-size: 32px;
+      margin-bottom: 30px;
+    }
+
+    .api-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .api-item {
+      border-left: 4px solid #3498db;
+      padding-left: 20px;
+    }
+
+    .api-item h4 {
+      color: #2c3e50;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    .api-item code {
+      background-color: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      color: #e74c3c;
+    }
+
+    .api-item p {
+      color: #7f8c8d;
+      margin-top: 5px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: #7f8c8d;
+      border-top: 1px solid #e0e0e0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hero">
+    <h1>用户管理插件</h1>
+    <p>功能强大的用户管理系统，提供完整的用户增删改查功能，支持 RESTful API 和页面访问</p>
+  </div>
+
+  <div class="container">
+    <div class="features">
+      <div class="feature-card">
+        <h3>📋 用户列表</h3>
+        <p>查看系统中所有用户的信息，支持快速浏览和管理操作</p>
+        <a href="/page/users/list">访问用户列表</a>
+      </div>
+
+      <div class="feature-card">
+        <h3>🔍 用户详情</h3>
+        <p>查看单个用户的详细信息，包括基本资料、角色权限等</p>
+        <a href="/page/users/list">从列表选择用户</a>
+      </div>
+
+      <div class="feature-card">
+        <h3>🚀 RESTful API</h3>
+        <p>提供标准的 RESTful API 接口，方便系统集成和自动化</p>
+        <a href="#api">查看 API 文档</a>
+      </div>
+    </div>
+
+    <div class="api-section" id="api">
+      <h2>API 接口文档</h2>
+      <div class="api-grid">
+        <div class="api-item">
+          <h4>获取所有用户</h4>
+          <code>GET /users</code>
+          <p>返回系统中所有用户的列表</p>
+        </div>
+
+        <div class="api-item">
+          <h4>获取单个用户</h4>
+          <code>GET /users/:id</code>
+          <p>根据用户 ID 获取特定用户的详细信息</p>
+        </div>
+
+        <div class="api-item">
+          <h4>创建新用户</h4>
+          <code>POST /users</code>
+          <p>创建新用户，需要在请求体中提供用户信息</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="api-section">
+      <h2>页面路由</h2>
+      <div class="api-grid">
+        <div class="api-item">
+          <h4>用户列表页面</h4>
+          <code>GET /page/users</code>
+          <p>展示所有用户的网页界面</p>
+        </div>
+
+        <div class="api-item">
+          <h4>用户详情页面</h4>
+          <code>GET /page/users/:id</code>
+          <p>展示特定用户详细信息的网页界面</p>
+        </div>
+
+        <div class="api-item">
+          <h4>插件主页</h4>
+          <code>GET /page/</code>
+          <p>用户管理插件的主页（当前页面）</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>用户管理插件 v1.0.0 | Powered by Vert.x</p>
+  </div>
+</body>
+
+</html>
