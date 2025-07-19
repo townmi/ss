@@ -7,7 +7,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import work.anyway.api.plugin.Plugin;
+import work.anyway.interfaces.plugin.Plugin;
 
 import java.io.File;
 import java.net.URL;

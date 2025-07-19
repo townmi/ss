@@ -14,7 +14,7 @@
   <dependencies>
     <dependency>
       <groupId>work.anyway</groupId>
-      <artifactId>interface.user</artifactId>
+      <artifactId>interfaces.user</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

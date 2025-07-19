@@ -4,21 +4,19 @@
 
   <parent>
     <groupId>work.anyway</groupId>
-    <artifactId>packages</artifactId>
+    <artifactId>work-anyway-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>packages.auth</artifactId>
-  <packaging>jar</packaging>
+  <artifactId>interfaces</artifactId>
+  <packaging>pom</packaging>
 
-  <dependencies>
-    <dependency>
-      <groupId>work.anyway</groupId>
-      <artifactId>interfaces.auth</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-  </dependencies>
-
+  <modules>
+    <module>user</module>
+    <module>auth</module>
+    <module>cache</module>
+    <module>plugin</module>
+    <module>bundle</module>
+  </modules>
 
 </project> 

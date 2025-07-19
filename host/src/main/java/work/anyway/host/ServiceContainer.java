@@ -45,7 +45,7 @@ public class ServiceContainer {
       // 尝试常见的实现类命名模式
       String[] possibleNames = {
           implClassName,
-          className.replace(".api.", ".packages.") + "Impl",
+          className.replace(".interfaces.", ".packages.") + "Impl",
           className.replace("Service", "ServiceImpl")
       };
 

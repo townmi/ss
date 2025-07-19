@@ -10,8 +10,8 @@ import io.vertx.ext.web.RoutingContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import work.anyway.api.plugin.Plugin;
-import work.anyway.api.user.UserService;
+import work.anyway.interfaces.plugin.Plugin;
+import work.anyway.interfaces.user.UserService;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

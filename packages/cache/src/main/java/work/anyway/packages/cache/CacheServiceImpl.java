@@ -1,6 +1,6 @@
 package work.anyway.packages.cache;
 
-import work.anyway.api.cache.CacheService;
+import work.anyway.interfaces.cache.CacheService;
 
 import java.time.Instant;
 import java.util.Map;

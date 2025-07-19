@@ -1,8 +1,7 @@
 package work.anyway.packages.user;
 
-import work.anyway.api.user.UserService;
+import work.anyway.interfaces.user.UserService;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,21 +11,6 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public Object getUserById(String userId) {
-    if ("123".equals(userId)) {
-      return new HashMap<String, Object>() {
-        {
-          put("id", "123");
-          put("name", "John Doe");
-          put("email", "john.doe@example.com");
-          put("phone", "1234567890");
-          put("address", "123 Main St, Anytown, USA");
-          put("city", "Anytown");
-          put("state", "CA");
-          put("zip", "12345");
-        }
-      };
-    }
-
     return store.get(userId);
   }
 

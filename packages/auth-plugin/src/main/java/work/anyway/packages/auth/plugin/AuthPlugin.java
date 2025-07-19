@@ -9,8 +9,8 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import work.anyway.api.auth.PermissionService;
-import work.anyway.api.plugin.Plugin;
+import work.anyway.interfaces.auth.PermissionService;
+import work.anyway.interfaces.plugin.Plugin;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -20,16 +20,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthPlugin implements Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuthPlugin.class);
-  private PermissionService permissionService;  // 将由容器自动注入
+  private PermissionService permissionService; // 将由容器自动注入
   private final ObjectMapper objectMapper = new ObjectMapper();
-  
+
   // 预定义的权限列表
   private static final List<String> AVAILABLE_PERMISSIONS = Arrays.asList(
       "user.create", "user.read", "user.update", "user.delete",
       "admin.access", "admin.manage",
       "system.config", "system.monitor",
-      "report.view", "report.export"
-  );
+      "report.view", "report.export");
 
   @Override
   public String getName() {
@@ -44,7 +43,7 @@ public class AuthPlugin implements Plugin {
   @Override
   public void initialize(Router router) {
     LOG.info("Initializing Auth Plugin...");
-    
+
     // 检查 permissionService 是否已被注入
     if (permissionService == null) {
       LOG.error("PermissionService was not injected!");
@@ -54,23 +53,23 @@ public class AuthPlugin implements Plugin {
     // API 端点
     // GET /auth/permissions/:userId - 获取用户权限
     router.get("/auth/permissions/:userId").handler(this::getUserPermissions);
-    
+
     // POST /auth/permissions/:userId - 授予权限
     router.post("/auth/permissions/:userId").handler(this::grantPermission);
-    
+
     // DELETE /auth/permissions/:userId/:permission - 撤销权限
     router.delete("/auth/permissions/:userId/:permission").handler(this::revokePermission);
-    
+
     // GET /auth/check/:userId/:permission - 检查权限
     router.get("/auth/check/:userId/:permission").handler(this::checkPermission);
-    
+
     // 页面路由
     // GET /page/auth/ - 权限管理主页
     router.get("/page/auth/").handler(this::getIndexPage);
-    
+
     // GET /page/auth/permissions - 权限管理页面
     router.get("/page/auth/permissions").handler(this::getPermissionsPage);
-    
+
     // GET /page/auth/user/:userId - 用户权限详情页面
     router.get("/page/auth/user/:userId").handler(this::getUserPermissionsPage);
 
@@ -83,7 +82,7 @@ public class AuthPlugin implements Plugin {
   private void getUserPermissions(RoutingContext ctx) {
     try {
       String userId = ctx.pathParam("userId");
-      
+
       // 获取用户的所有权限
       List<String> permissions = new ArrayList<>();
       for (String permission : AVAILABLE_PERMISSIONS) {
@@ -91,74 +90,74 @@ public class AuthPlugin implements Plugin {
           permissions.add(permission);
         }
       }
-      
+
       JsonObject response = new JsonObject()
           .put("userId", userId)
           .put("permissions", new JsonArray(permissions));
-      
+
       sendJsonResponse(ctx.response(), response);
     } catch (Exception e) {
       LOG.error("Error getting user permissions", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
     }
   }
-  
+
   private void grantPermission(RoutingContext ctx) {
     try {
       String userId = ctx.pathParam("userId");
       JsonObject body = ctx.body().asJsonObject();
-      
+
       if (body == null || !body.containsKey("permission")) {
         ctx.response().setStatusCode(400).end("Permission is required");
         return;
       }
-      
+
       String permission = body.getString("permission");
       permissionService.grantPermission(userId, permission);
-      
+
       JsonObject response = new JsonObject()
           .put("message", "Permission granted successfully")
           .put("userId", userId)
           .put("permission", permission);
-      
+
       sendJsonResponse(ctx.response(), response);
     } catch (Exception e) {
       LOG.error("Error granting permission", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
     }
   }
-  
+
   private void revokePermission(RoutingContext ctx) {
     try {
       String userId = ctx.pathParam("userId");
       String permission = ctx.pathParam("permission");
-      
+
       permissionService.revokePermission(userId, permission);
-      
+
       JsonObject response = new JsonObject()
           .put("message", "Permission revoked successfully")
           .put("userId", userId)
           .put("permission", permission);
-      
+
       sendJsonResponse(ctx.response(), response);
     } catch (Exception e) {
       LOG.error("Error revoking permission", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
     }
   }
-  
+
   private void checkPermission(RoutingContext ctx) {
     try {
       String userId = ctx.pathParam("userId");
       String permission = ctx.pathParam("permission");
-      
+
       boolean hasPermission = permissionService.hasPermission(userId, permission);
-      
+
       JsonObject response = new JsonObject()
           .put("userId", userId)
           .put("permission", permission)
           .put("hasPermission", hasPermission);
-      
+
       sendJsonResponse(ctx.response(), response);
     } catch (Exception e) {
       LOG.error("Error checking permission", e);
@@ -187,7 +186,7 @@ public class AuthPlugin implements Plugin {
       ctx.response().setStatusCode(500).end("Internal Server Error");
     }
   }
-  
+
   private void getPermissionsPage(RoutingContext ctx) {
     try {
       String html = readResourceFile("auth-plugin/templates/permissions.html");
@@ -205,16 +204,16 @@ public class AuthPlugin implements Plugin {
       ctx.response().setStatusCode(500).end("Internal Server Error");
     }
   }
-  
+
   private void getUserPermissionsPage(RoutingContext ctx) {
     try {
       String userId = ctx.pathParam("userId");
       String template = readResourceFile("auth-plugin/templates/user-permissions.html");
-      
+
       if (template != null) {
         // 替换用户ID
         template = template.replaceAll("\\{\\{userId\\}\\}", userId);
-        
+
         ctx.response()
             .putHeader("content-type", "text/html; charset=utf-8")
             .end(template);
@@ -240,7 +239,7 @@ public class AuthPlugin implements Plugin {
       response.setStatusCode(500).end("Error serializing response");
     }
   }
-  
+
   private String readResourceFile(String path) {
     // 使用当前类的类加载器，而不是系统类加载器
     try (InputStream is = AuthPlugin.class.getResourceAsStream("/" + path)) {
@@ -257,4 +256,4 @@ public class AuthPlugin implements Plugin {
       return null;
     }
   }
-} 
+}

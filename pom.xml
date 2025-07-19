@@ -7,7 +7,7 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>interface</module>
+    <module>interfaces</module>
     <module>packages</module>
     <module>host</module>
 

@@ -18,14 +18,14 @@
     <!-- 插件接口 -->
     <dependency>
       <groupId>work.anyway</groupId>
-      <artifactId>interface.plugin</artifactId>
+      <artifactId>interfaces.plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
     
     <!-- 权限接口 -->
     <dependency>
       <groupId>work.anyway</groupId>
-      <artifactId>interface.auth</artifactId>
+      <artifactId>interfaces.auth</artifactId>
       <version>${project.version}</version>
     </dependency>
     

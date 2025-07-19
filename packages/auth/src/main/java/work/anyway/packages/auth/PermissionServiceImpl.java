@@ -1,6 +1,6 @@
 package work.anyway.packages.auth;
 
-import work.anyway.api.auth.PermissionService;
+import work.anyway.interfaces.auth.PermissionService;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
