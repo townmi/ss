@@ -12,11 +12,11 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>user</module>
     <module>auth</module>
     <module>cache</module>
+    <module>data</module>
     <module>plugin</module>
-    <module>bundle</module>
+    <module>user</module>
   </modules>
 
 </project> 

@@ -53,13 +53,12 @@
       <scope>runtime</scope>
     </dependency>
     
-    <!-- Plugin API -->
+    <!-- Plugin interface -->
     <dependency>
       <groupId>work.anyway</groupId>
       <artifactId>interfaces.plugin</artifactId>
       <version>${project.version}</version>
-    </dependency> 
- 
+    </dependency>
   </dependencies>
 
   <build>

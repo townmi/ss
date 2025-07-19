@@ -15,6 +15,7 @@ set "CONFIG_FILE=%BASE%host\src\main\resources\application.properties"
 REM === 设置系统属性 ===
 set "JAVA_OPTS=-Dconfig.file=%CONFIG_FILE%"
 set "JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory=%BASE%libs\plugins"
+set "JAVA_OPTS=%JAVA_OPTS% -Dservices.directory=%BASE%libs\services"
 set "JAVA_OPTS=%JAVA_OPTS% -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory"
 
 REM === 可选：覆盖配置文件中的设置 ===
@@ -27,8 +28,9 @@ echo Starting Host with Vert.x...
 echo Config: %CONFIG_FILE%
 echo Port: 8080 (default, set HTTP_PORT to override)
 echo Plugin directory: %BASE%libs\plugins
+echo Service directory: %BASE%libs\services
 echo ========================================
 echo.
 
-cd /d "%BASE%host"
-java %JAVA_OPTS% -jar target\host-1.0.0-SNAPSHOT.jar %*
+REM 不要改变目录，直接使用完整路径运行
+java %JAVA_OPTS% -jar "%BASE%host\target\host-1.0.0-SNAPSHOT.jar" %*

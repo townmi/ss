@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Build script for Windows PowerShell
-# 构建脚本 - 编译所有模块并复制插件到部署目录
+# 构建脚本 - 编译所有模块并复制到部署目录
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "开始构建 Direct-LLM-Rask 项目" -ForegroundColor Cyan
@@ -12,39 +12,46 @@ $ErrorActionPreference = "Stop"
 # 获取脚本所在目录（项目根目录）
 $ProjectRoot = $PSScriptRoot
 $PluginsDir = Join-Path $ProjectRoot "libs/plugins"
-$PackagesDir = Join-Path $ProjectRoot "packages"
+$ServicesDir = Join-Path $ProjectRoot "libs/services"
 
 # 检查 Maven Wrapper 是否存在
-$MvnCmd = Join-Path $ProjectRoot "mvnw"
+$MvnCmd = Join-Path $ProjectRoot "mvnw.cmd"
 if (-not (Test-Path $MvnCmd)) {
-    Write-Host "错误：找不到 Maven Wrapper (mvnw)" -ForegroundColor Red
+    Write-Host "错误：找不到 Maven Wrapper (mvnw.cmd)" -ForegroundColor Red
     exit 1
 }
 
 # 步骤 1: 清理并构建整个项目
-Write-Host "`n[1/3] 清理并构建所有模块..." -ForegroundColor Yellow
-& $MvnCmd clean package -DskipTests
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "构建失败！" -ForegroundColor Red
+Write-Host "`n[1/4] 清理并构建所有模块..." -ForegroundColor Yellow
+$BuildResult = & $MvnCmd clean package -DskipTests 2>&1
+$BuildExitCode = $LASTEXITCODE
+
+# 显示构建输出的最后几行（包含错误信息）
+if ($BuildExitCode -ne 0) {
+    Write-Host "`n构建失败！错误信息：" -ForegroundColor Red
+    $BuildResult | Select-Object -Last 20 | ForEach-Object { Write-Host $_ }
+    Write-Host "`n退出代码: $BuildExitCode" -ForegroundColor Red
     exit 1
 }
 
-# 步骤 2: 确保插件目录存在
-Write-Host "`n[2/3] 准备插件目录..." -ForegroundColor Yellow
+# 步骤 2: 确保目录存在
+Write-Host "`n[2/4] 准备部署目录..." -ForegroundColor Yellow
 if (-not (Test-Path $PluginsDir)) {
     New-Item -ItemType Directory -Path $PluginsDir -Force | Out-Null
     Write-Host "创建插件目录: $PluginsDir" -ForegroundColor Green
 }
+if (-not (Test-Path $ServicesDir)) {
+    New-Item -ItemType Directory -Path $ServicesDir -Force | Out-Null
+    Write-Host "创建服务目录: $ServicesDir" -ForegroundColor Green
+}
 
-# 步骤 3: 自动扫描并复制所有 JAR 文件
-Write-Host "`n[3/3] 扫描并复制 JAR 文件到部署目录..." -ForegroundColor Yellow
-
-$CopiedCount = 0
-$PluginCount = 0
+# 步骤 3: 复制服务 JAR 文件
+Write-Host "`n[3/4] 复制服务 JAR 文件..." -ForegroundColor Yellow
 $ServiceCount = 0
 
-# 扫描 packages 目录下的所有子目录
-Get-ChildItem -Path $PackagesDir -Directory | ForEach-Object {
+# 扫描 services 目录下的所有子目录
+$ServicesPath = Join-Path $ProjectRoot "services"
+Get-ChildItem -Path $ServicesPath -Directory | ForEach-Object {
     $ModuleName = $_.Name
     $TargetDir = Join-Path $_.FullName "target"
     
@@ -54,17 +61,37 @@ Get-ChildItem -Path $PackagesDir -Directory | ForEach-Object {
             Where-Object { $_.Name -notlike "original-*" -and $_.Name -notlike "*-sources.jar" -and $_.Name -notlike "*-javadoc.jar" }
         
         if ($JarFiles) {
-            # 判断是插件还是服务
-            $IsPlugin = $ModuleName -like "*-plugin"
-            $ModuleType = if ($IsPlugin) { "插件" } else { "服务" }
-            
+            foreach ($jar in $JarFiles) {
+                $DestPath = Join-Path $ServicesDir $jar.Name
+                Copy-Item -Path $jar.FullName -Destination $DestPath -Force
+                Write-Host "  ✓ 复制服务: $($jar.Name)" -ForegroundColor Green
+                $ServiceCount++
+            }
+        }
+    }
+}
+
+# 步骤 4: 复制插件 JAR 文件
+Write-Host "`n[4/4] 复制插件 JAR 文件..." -ForegroundColor Yellow
+$PluginCount = 0
+
+# 扫描 plugins 目录下的所有子目录
+$PluginsPath = Join-Path $ProjectRoot "plugins"
+Get-ChildItem -Path $PluginsPath -Directory | ForEach-Object {
+    $ModuleName = $_.Name
+    $TargetDir = Join-Path $_.FullName "target"
+    
+    if (Test-Path $TargetDir) {
+        # 查找该模块的 JAR 文件（排除 original- 开头的）
+        $JarFiles = Get-ChildItem -Path $TargetDir -Filter "*.jar" | 
+            Where-Object { $_.Name -notlike "original-*" -and $_.Name -notlike "*-sources.jar" -and $_.Name -notlike "*-javadoc.jar" }
+        
+        if ($JarFiles) {
             foreach ($jar in $JarFiles) {
                 $DestPath = Join-Path $PluginsDir $jar.Name
                 Copy-Item -Path $jar.FullName -Destination $DestPath -Force
-                Write-Host "  ✓ 复制 $ModuleType : $($jar.Name)" -ForegroundColor Green
-                $CopiedCount++
-                
-                if ($IsPlugin) { $PluginCount++ } else { $ServiceCount++ }
+                Write-Host "  ✓ 复制插件: $($jar.Name)" -ForegroundColor Green
+                $PluginCount++
             }
         }
     }
@@ -73,27 +100,27 @@ Get-ChildItem -Path $PackagesDir -Directory | ForEach-Object {
 # 显示最终结果
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "构建完成！" -ForegroundColor Green
-Write-Host "共复制 $CopiedCount 个 JAR 文件到插件目录" -ForegroundColor Green
-Write-Host "  - 插件: $PluginCount 个" -ForegroundColor Cyan
-Write-Host "  - 服务: $ServiceCount 个" -ForegroundColor Cyan
-Write-Host "插件目录: $PluginsDir" -ForegroundColor Cyan
+Write-Host "  - 服务: $ServiceCount 个 (位于 libs/services)" -ForegroundColor Cyan
+Write-Host "  - 插件: $PluginCount 个 (位于 libs/plugins)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-# 列出插件目录内容（按类型分组）
-Write-Host "`n当前插件目录内容:" -ForegroundColor Yellow
-
-# 先列出插件
-Write-Host "`n插件 JAR:" -ForegroundColor Cyan
-Get-ChildItem -Path $PluginsDir -Filter "*-plugin-*.jar" | ForEach-Object {
-    Write-Host "  - $($_.Name) ($([math]::Round($_.Length / 1KB, 1)) KB)" -ForegroundColor Gray
-}
-
-# 再列出服务
-Write-Host "`n服务 JAR:" -ForegroundColor Cyan
-Get-ChildItem -Path $PluginsDir -Filter "*.jar" | 
-    Where-Object { $_.Name -notlike "*-plugin-*" } | 
-    ForEach-Object {
+# 列出目录内容
+Write-Host "`n服务 JAR (libs/services):" -ForegroundColor Yellow
+if (Test-Path $ServicesDir) {
+    Get-ChildItem -Path $ServicesDir -Filter "*.jar" | ForEach-Object {
         Write-Host "  - $($_.Name) ($([math]::Round($_.Length / 1KB, 1)) KB)" -ForegroundColor Gray
     }
+} else {
+    Write-Host "  (空)" -ForegroundColor Gray
+}
+
+Write-Host "`n插件 JAR (libs/plugins):" -ForegroundColor Yellow
+if (Test-Path $PluginsDir) {
+    Get-ChildItem -Path $PluginsDir -Filter "*.jar" | ForEach-Object {
+        Write-Host "  - $($_.Name) ($([math]::Round($_.Length / 1KB, 1)) KB)" -ForegroundColor Gray
+    }
+} else {
+    Write-Host "  (空)" -ForegroundColor Gray
+}
 
 Write-Host "`n提示: 使用 ./start.bat 启动应用程序" -ForegroundColor Cyan 

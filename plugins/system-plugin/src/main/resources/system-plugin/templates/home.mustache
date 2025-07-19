@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>插件管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .plugins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .plugin-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+        }
+
+        .plugin-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+
+        .plugin-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .plugin-icon {
+            font-size: 2.5rem;
+            margin-right: 15px;
+        }
+
+        .plugin-info h3 {
+            color: #2c3e50;
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+        }
+
+        .plugin-version {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .plugin-description {
+            color: #5a6c7d;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .plugin-action {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .plugin-action:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .plugin-inactive {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .plugin-inactive:hover {
+            background-color: #95a5a6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: #5a6c7d;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .plugins-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="container">
+            <h1>插件管理系统</h1>
+            <p>简单、高效、可扩展的插件化架构</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{{pluginCount}}</div>
+                <div class="stat-label">已加载插件</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">✅</div>
+                <div class="stat-label">系统状态</div>
+            </div>
+        </div>
+
+        {{#hasPlugins}}
+        <div class="plugins-grid">
+            {{#plugins}}
+            <div class="plugin-card">
+                <div class="plugin-header">
+                    <div class="plugin-icon">{{icon}}</div>
+                    <div class="plugin-info">
+                        <h3>{{name}}</h3>
+                        <div class="plugin-version">版本 {{version}}</div>
+                    </div>
+                </div>
+                <p class="plugin-description">{{description}}</p>
+                {{#hasPage}}
+                <a href="{{pageUrl}}" class="plugin-action">进入管理</a>
+                {{/hasPage}}
+                {{^hasPage}}
+                <span class="plugin-action plugin-inactive">无管理界面</span>
+                {{/hasPage}}
+            </div>
+            {{/plugins}}
+        </div>
+        {{/hasPlugins}}
+
+        {{^hasPlugins}}
+        <div class="empty-state">
+            <h2>暂无插件</h2>
+            <p>请将插件 JAR 文件放置到 libs/plugins 目录并重启系统</p>
+        </div>
+        {{/hasPlugins}}
+    </div>
+</body>
+</html> 

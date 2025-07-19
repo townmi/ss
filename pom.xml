@@ -8,9 +8,9 @@
 
   <modules>
     <module>interfaces</module>
-    <module>packages</module>
+    <module>services</module>
+    <module>plugins</module>
     <module>host</module>
-
   </modules>
 
   <properties>
