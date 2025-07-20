@@ -19,5 +19,6 @@
     <module>auth-plugin</module>
     <module>data-plugin</module>
     <module>user-plugin</module>
+    <module>data-example-plugin</module>
   </modules>
 </project> 

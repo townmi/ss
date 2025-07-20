@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理示例</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .actions {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      font-size: 14px;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn-primary {
+      background-color: #4a90e2;
+      color: white;
+    }
+
+    .btn-success {
+      background-color: #5cb85c;
+      color: white;
+    }
+
+    .btn-danger {
+      background-color: #d9534f;
+      color: white;
+    }
+
+    .btn-warning {
+      background-color: #f0ad4e;
+      color: white;
+    }
+
+    table {
+      width: 100%;
+      background-color: white;
+      border-collapse: collapse;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    th,
+    td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .badge-success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .badge-danger {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .badge-info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #4a90e2;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 500px;
+      border-radius: 8px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+    }
+
+    .close {
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close:hover {
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 5px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card h3 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="/page/data-example/" class="back-link">← 返回示例列表</a>
+    <h1>👥 用户管理示例</h1>
+
+    <div class="stats" id="stats">
+      <div class="stat-card">
+        <h3>总用户数</h3>
+        <div class="value" id="totalUsers">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>活跃用户</h3>
+        <div class="value" id="activeUsers">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>管理员数</h3>
+        <div class="value" id="adminCount">-</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="loadUsers()">刷新列表</button>
+      <button class="btn btn-success" onclick="showCreateModal()">创建新用户</button>
+      <button class="btn btn-warning" onclick="loadActiveUsers()">仅显示活跃用户</button>
+    </div>
+
+    <div id="content">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 创建用户模态框 -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>创建新用户</h2>
+        <span class="close" onclick="hideCreateModal()">&times;</span>
+      </div>
+      <form id="createForm" onsubmit="createUser(event)">
+        <div class="form-group">
+          <label>用户名 *</label>
+          <input type="text" name="username" required>
+        </div>
+        <div class="form-group">
+          <label>邮箱 *</label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="form-group">
+          <label>角色</label>
+          <select name="role">
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="active" checked>
+            启用账户
+          </label>
+        </div>
+        <div style="text-align: right;">
+          <button type="button" class="btn" onclick="hideCreateModal()">取消</button>
+          <button type="submit" class="btn btn-success">创建</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let allUsers = [];
+
+    async function loadUsers() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">加载中...</div>';
+
+      try {
+        const response = await fetch('/api/data-example/users');
+        const result = await response.json();
+
+        if (result.success) {
+          allUsers = result.data;
+          displayUsers(result.data);
+          updateStats(result.data);
+        } else {
+          content.innerHTML = `<div class="error">加载失败: ${result.error}</div>`;
+        }
+      } catch (error) {
+        content.innerHTML = `<div class="error">请求失败: ${error.message}</div>`;
+      }
+    }
+
+    async function loadActiveUsers() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">加载中...</div>';
+
+      try {
+        const response = await fetch('/api/data-example/demo/active-users');
+        const result = await response.json();
+
+        if (result.success) {
+          displayUsers(result.data);
+        } else {
+          content.innerHTML = `<div class="error">加载失败: ${result.error}</div>`;
+        }
+      } catch (error) {
+        content.innerHTML = `<div class="error">请求失败: ${error.message}</div>`;
+      }
+    }
+
+    function displayUsers(users) {
+      const content = document.getElementById('content');
+
+      if (users.length === 0) {
+        content.innerHTML = '<p>暂无用户数据</p>';
+        return;
+      }
+
+      let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+      users.forEach(user => {
+        const statusBadge = user.active
+          ? '<span class="badge badge-success">活跃</span>'
+          : '<span class="badge badge-danger">禁用</span>';
+
+        const roleBadge = user.role === 'admin'
+          ? '<span class="badge badge-info">管理员</span>'
+          : '<span class="badge">普通用户</span>';
+
+        html += `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>${roleBadge}</td>
+                        <td>${statusBadge}</td>
+                        <td>${new Date(user.createdAt).toLocaleString('zh-CN')}</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="toggleUserStatus('${user.id}', ${!user.active})">
+                                ${user.active ? '禁用' : '启用'}
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteUser('${user.id}')">
+                                删除
+                            </button>
+                        </td>
+                    </tr>
+                `;
+      });
+
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+
+    function updateStats(users) {
+      document.getElementById('totalUsers').textContent = users.length;
+      document.getElementById('activeUsers').textContent = users.filter(u => u.active).length;
+      document.getElementById('adminCount').textContent = users.filter(u => u.role === 'admin').length;
+    }
+
+    function showCreateModal() {
+      document.getElementById('createModal').style.display = 'block';
+    }
+
+    function hideCreateModal() {
+      document.getElementById('createModal').style.display = 'none';
+      document.getElementById('createForm').reset();
+    }
+
+    async function createUser(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+
+      const userData = {
+        username: formData.get('username'),
+        email: formData.get('email'),
+        role: formData.get('role'),
+        active: formData.get('active') === 'on'
+      };
+
+      try {
+        const response = await fetch('/api/data-example/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(userData)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          hideCreateModal();
+          loadUsers();
+        } else {
+          alert('创建失败: ' + result.error);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function toggleUserStatus(userId, active) {
+      try {
+        const response = await fetch(`/api/data-example/users/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ active: active })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          loadUsers();
+        } else {
+          alert('更新失败: ' + result.error);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm('确定要删除这个用户吗？')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/data-example/users/${userId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          loadUsers();
+        } else {
+          alert('删除失败: ' + result.error);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    // 点击模态框外部关闭
+    window.onclick = function (event) {
+      const modal = document.getElementById('createModal');
+      if (event.target === modal) {
+        hideCreateModal();
+      }
+    }
+
+    // 页面加载时获取用户列表
+    loadUsers();
+  </script>
+</body>
+
+</html>

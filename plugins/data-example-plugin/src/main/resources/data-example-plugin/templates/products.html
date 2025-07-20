@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>产品管理示例</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .actions {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      font-size: 14px;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn-primary {
+      background-color: #4a90e2;
+      color: white;
+    }
+
+    .btn-success {
+      background-color: #5cb85c;
+      color: white;
+    }
+
+    .btn-warning {
+      background-color: #f0ad4e;
+      color: white;
+    }
+
+    .btn-danger {
+      background-color: #d9534f;
+      color: white;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .product-card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .product-card h3 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .price {
+      font-size: 24px;
+      color: #4a90e2;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .stock {
+      margin: 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stock-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .stock-low {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .stock-medium {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
+    .stock-ok {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #4a90e2;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .update-stock {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .stock-input {
+      width: 80px;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 500px;
+      border-radius: 8px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+    }
+
+    .close {
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close:hover {
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card h3 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .description {
+      color: #666;
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="/page/data-example/" class="back-link">← 返回示例列表</a>
+    <h1>📦 产品管理示例</h1>
+
+    <div class="stats">
+      <div class="stat-card">
+        <h3>总产品数</h3>
+        <div class="value" id="totalProducts">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>低库存产品</h3>
+        <div class="value" id="lowStockCount">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>总库存价值</h3>
+        <div class="value" id="totalValue">-</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="loadProducts()">刷新列表</button>
+      <button class="btn btn-success" onclick="showCreateModal()">添加新产品</button>
+      <button class="btn btn-warning" onclick="loadLowStockProducts()">显示低库存产品</button>
+    </div>
+
+    <div id="content">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 创建产品模态框 -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>添加新产品</h2>
+        <span class="close" onclick="hideCreateModal()">&times;</span>
+      </div>
+      <form id="createForm" onsubmit="createProduct(event)">
+        <div class="form-group">
+          <label>产品名称 *</label>
+          <input type="text" name="name" required>
+        </div>
+        <div class="form-group">
+          <label>产品描述 *</label>
+          <textarea name="description" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>价格 *</label>
+          <input type="number" name="price" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>库存数量 *</label>
+          <input type="number" name="stock" min="0" required>
+        </div>
+        <div style="text-align: right;">
+          <button type="button" class="btn" onclick="hideCreateModal()">取消</button>
+          <button type="submit" class="btn btn-success">创建</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let allProducts = [];
+
+    async function loadProducts() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">加载中...</div>';
+
+      try {
+        const response = await fetch('/api/data-example/products');
+        const result = await response.json();
+
+        if (result.success) {
+          allProducts = result.data;
+          displayProducts(result.data);
+          updateStats(result.data);
+        } else {
+          content.innerHTML = `<div class="error">加载失败: ${result.error}</div>`;
+        }
+      } catch (error) {
+        content.innerHTML = `<div class="error">请求失败: ${error.message}</div>`;
+      }
+    }
+
+    async function loadLowStockProducts() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">加载中...</div>';
+
+      try {
+        const response = await fetch('/api/data-example/demo/low-stock-products');
+        const result = await response.json();
+
+        if (result.success) {
+          displayProducts(result.data);
+        } else {
+          content.innerHTML = `<div class="error">加载失败: ${result.error}</div>`;
+        }
+      } catch (error) {
+        content.innerHTML = `<div class="error">请求失败: ${error.message}</div>`;
+      }
+    }
+
+    function displayProducts(products) {
+      const content = document.getElementById('content');
+
+      if (products.length === 0) {
+        content.innerHTML = '<p>暂无产品数据</p>';
+        return;
+      }
+
+      let html = '<div class="product-grid">';
+
+      products.forEach(product => {
+        let stockClass, stockText;
+        if (product.stock < 20) {
+          stockClass = 'stock-low';
+          stockText = '库存不足';
+        } else if (product.stock < 50) {
+          stockClass = 'stock-medium';
+          stockText = '库存较少';
+        } else {
+          stockClass = 'stock-ok';
+          stockText = '库存充足';
+        }
+
+        html += `
+                    <div class="product-card">
+                        <h3>${product.name}</h3>
+                        <p class="description">${product.description}</p>
+                        <div class="price">¥${product.price.toFixed(2)}</div>
+                        <div class="stock">
+                            <span>库存: ${product.stock}</span>
+                            <span class="stock-badge ${stockClass}">${stockText}</span>
+                        </div>
+                        <div class="update-stock">
+                            <input type="number" 
+                                   class="stock-input" 
+                                   id="stock-${product.id}" 
+                                   value="${product.stock}" 
+                                   min="0">
+                            <button class="btn btn-primary" 
+                                    onclick="updateStock('${product.id}')">
+                                更新库存
+                            </button>
+                            <button class="btn btn-danger" 
+                                    onclick="deleteProduct('${product.id}')">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                `;
+      });
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function updateStats(products) {
+      document.getElementById('totalProducts').textContent = products.length;
+
+      const lowStockCount = products.filter(p => p.stock < 20).length;
+      document.getElementById('lowStockCount').textContent = lowStockCount;
+
+      const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+      document.getElementById('totalValue').textContent = '¥' + totalValue.toFixed(2);
+    }
+
+    function showCreateModal() {
+      document.getElementById('createModal').style.display = 'block';
+    }
+
+    function hideCreateModal() {
+      document.getElementById('createModal').style.display = 'none';
+      document.getElementById('createForm').reset();
+    }
+
+    async function createProduct(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+
+      const productData = {
+        name: formData.get('name'),
+        description: formData.get('description'),
+        price: parseFloat(formData.get('price')),
+        stock: parseInt(formData.get('stock'))
+      };
+
+      try {
+        const response = await fetch('/api/data-example/products', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(productData)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          hideCreateModal();
+          loadProducts();
+        } else {
+          alert('创建失败: ' + result.error);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function updateStock(productId) {
+      const stockInput = document.getElementById(`stock-${productId}`);
+      const newStock = parseInt(stockInput.value);
+
+      if (isNaN(newStock) || newStock < 0) {
+        alert('请输入有效的库存数量');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/data-example/products/${productId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ stock: newStock })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          loadProducts();
+        } else {
+          alert('更新失败: ' + result.error);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function deleteProduct(productId) {
+      if (!confirm('确定要删除这个产品吗？')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/data-example/products/${productId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          loadProducts();
+        } else {
+          alert('删除失败: ' + result.error);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    // 点击模态框外部关闭
+    window.onclick = function (event) {
+      const modal = document.getElementById('createModal');
+      if (event.target === modal) {
+        hideCreateModal();
+      }
+    }
+
+    // 页面加载时获取产品列表
+    loadProducts();
+  </script>
+</body>
+
+</html>

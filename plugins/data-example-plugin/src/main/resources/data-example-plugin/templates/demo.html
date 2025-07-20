@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高级查询示例</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .demo-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .demo-section h2 {
+      margin-top: 0;
+      color: #4a90e2;
+    }
+
+    .code-example {
+      background-color: #f8f8f8;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin: 15px 0;
+      overflow-x: auto;
+    }
+
+    pre {
+      margin: 0;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn-primary {
+      background-color: #4a90e2;
+      color: white;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #4a90e2;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .result-box {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .result-box pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+
+    .query-builder {
+      margin: 15px 0;
+    }
+
+    .query-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .query-row select,
+    .query-row input {
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .query-row select {
+      width: 150px;
+    }
+
+    .query-row input {
+      flex: 1;
+    }
+
+    .tips {
+      background-color: #e8f4fd;
+      border-left: 4px solid #4a90e2;
+      padding: 15px;
+      margin: 15px 0;
+    }
+
+    .tips h3 {
+      margin-top: 0;
+      color: #357abd;
+    }
+
+    .tips ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="/page/data-example/" class="back-link">← 返回示例列表</a>
+    <h1>🔍 高级查询示例</h1>
+
+    <div class="demo-section">
+      <h2>1. 使用 QueryCriteria 进行查询</h2>
+      <p>QueryCriteria 提供了流畅的 API 来构建复杂查询条件。</p>
+
+      <div class="code-example">
+        <pre><code>// 查询活跃的管理员用户
+List&lt;User&gt; activeAdmins = userRepository.findBy(
+    QueryCriteria.&lt;User&gt;create()
+        .eq("role", "admin")
+        .eq("active", true)
+        .orderBy("username", true)
+);</code></pre>
+      </div>
+
+      <button class="btn btn-primary" onclick="queryActiveAdmins()">运行查询</button>
+      <div id="result1" class="result-box" style="display: none;">
+        <pre></pre>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <h2>2. 多条件组合查询</h2>
+      <p>支持多种查询操作符的组合使用。</p>
+
+      <div class="tips">
+        <h3>支持的查询操作符：</h3>
+        <ul>
+          <li><strong>eq</strong> - 等于</li>
+          <li><strong>ne</strong> - 不等于</li>
+          <li><strong>gt</strong> - 大于</li>
+          <li><strong>gte</strong> - 大于等于</li>
+          <li><strong>lt</strong> - 小于</li>
+          <li><strong>lte</strong> - 小于等于</li>
+          <li><strong>like</strong> - 模糊匹配</li>
+          <li><strong>in</strong> - 在列表中</li>
+          <li><strong>notIn</strong> - 不在列表中</li>
+          <li><strong>isNull</strong> - 为空</li>
+          <li><strong>isNotNull</strong> - 不为空</li>
+        </ul>
+      </div>
+
+      <div class="code-example">
+        <pre><code>// 查询价格在 100-1000 之间，库存大于 10 的产品
+List&lt;Product&gt; products = productRepository.findBy(
+    QueryCriteria.&lt;Product&gt;create()
+        .gte("price", 100)
+        .lte("price", 1000)
+        .gt("stock", 10)
+        .orderBy("price", false)  // 按价格降序
+);</code></pre>
+      </div>
+
+      <button class="btn btn-primary" onclick="queryProductsByRange()">运行查询</button>
+      <div id="result2" class="result-box" style="display: none;">
+        <pre></pre>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <h2>3. 分页查询</h2>
+      <p>使用 QueryOptions 进行分页和排序。</p>
+
+      <div class="code-example">
+        <pre><code>// 分页查询用户，每页 5 条，查询第 1 页
+QueryOptions options = QueryOptions.create()
+    .page(1)
+    .pageSize(5)
+    .sortBy("createdAt")
+    .descending();
+
+PageResult&lt;User&gt; userPage = userRepository.findPage(options);</code></pre>
+      </div>
+
+      <button class="btn btn-primary" onclick="queryUsersWithPagination()">运行分页查询</button>
+      <div id="result3" class="result-box" style="display: none;">
+        <pre></pre>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <h2>4. 自定义查询构建器</h2>
+      <p>尝试构建你自己的查询条件。</p>
+
+      <div class="query-builder">
+        <div class="query-row">
+          <select id="entity">
+            <option value="users">用户</option>
+            <option value="products">产品</option>
+          </select>
+          <select id="field">
+            <option value="">选择字段</option>
+          </select>
+          <select id="operator">
+            <option value="eq">等于</option>
+            <option value="ne">不等于</option>
+            <option value="gt">大于</option>
+            <option value="lt">小于</option>
+            <option value="like">包含</option>
+          </select>
+          <input type="text" id="value" placeholder="值">
+        </div>
+        <button class="btn btn-primary" onclick="runCustomQuery()">执行查询</button>
+      </div>
+
+      <div id="result4" class="result-box" style="display: none;">
+        <pre></pre>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <h2>5. 统计查询</h2>
+      <p>展示各种统计数据。</p>
+
+      <table id="statsTable">
+        <thead>
+          <tr>
+            <th>统计项</th>
+            <th>值</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>总用户数</td>
+            <td id="stat1">-</td>
+          </tr>
+          <tr>
+            <td>活跃用户数</td>
+            <td id="stat2">-</td>
+          </tr>
+          <tr>
+            <td>管理员数量</td>
+            <td id="stat3">-</td>
+          </tr>
+          <tr>
+            <td>总产品数</td>
+            <td id="stat4">-</td>
+          </tr>
+          <tr>
+            <td>低库存产品数</td>
+            <td id="stat5">-</td>
+          </tr>
+          <tr>
+            <td>平均产品价格</td>
+            <td id="stat6">-</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <button class="btn btn-primary" onclick="loadStatistics()">加载统计数据</button>
+    </div>
+  </div>
+
+  <script>
+    // 字段映射
+    const fieldMappings = {
+      users: [
+        { value: 'username', text: '用户名' },
+        { value: 'email', text: '邮箱' },
+        { value: 'role', text: '角色' },
+        { value: 'active', text: '状态' }
+      ],
+      products: [
+        { value: 'name', text: '产品名称' },
+        { value: 'price', text: '价格' },
+        { value: 'stock', text: '库存' }
+      ]
+    };
+
+    // 实体选择变化时更新字段列表
+    document.getElementById('entity').addEventListener('change', function (e) {
+      const fieldSelect = document.getElementById('field');
+      const fields = fieldMappings[e.target.value] || [];
+
+      fieldSelect.innerHTML = '<option value="">选择字段</option>';
+      fields.forEach(field => {
+        const option = document.createElement('option');
+        option.value = field.value;
+        option.textContent = field.text;
+        fieldSelect.appendChild(option);
+      });
+    });
+
+    async function queryActiveAdmins() {
+      try {
+        const response = await fetch('/api/data-example/demo/active-users');
+        const result = await response.json();
+
+        const resultBox = document.getElementById('result1');
+        const pre = resultBox.querySelector('pre');
+
+        if (result.success) {
+          const admins = result.data.filter(u => u.role === 'admin');
+          pre.textContent = `找到 ${admins.length} 个活跃的管理员:\n\n`;
+          pre.textContent += JSON.stringify(admins, null, 2);
+        } else {
+          pre.textContent = `查询失败: ${result.error}`;
+        }
+
+        resultBox.style.display = 'block';
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function queryProductsByRange() {
+      try {
+        const response = await fetch('/api/data-example/products');
+        const result = await response.json();
+
+        const resultBox = document.getElementById('result2');
+        const pre = resultBox.querySelector('pre');
+
+        if (result.success) {
+          // 在客户端过滤（实际应在服务端实现）
+          const filtered = result.data.filter(p =>
+            p.price >= 100 && p.price <= 1000 && p.stock > 10
+          ).sort((a, b) => b.price - a.price);
+
+          pre.textContent = `找到 ${filtered.length} 个符合条件的产品:\n\n`;
+          pre.textContent += JSON.stringify(filtered, null, 2);
+        } else {
+          pre.textContent = `查询失败: ${result.error}`;
+        }
+
+        resultBox.style.display = 'block';
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function queryUsersWithPagination() {
+      try {
+        const response = await fetch('/api/data-example/users');
+        const result = await response.json();
+
+        const resultBox = document.getElementById('result3');
+        const pre = resultBox.querySelector('pre');
+
+        if (result.success) {
+          // 模拟分页（实际应在服务端实现）
+          const pageSize = 5;
+          const page = 1;
+          const start = (page - 1) * pageSize;
+          const end = start + pageSize;
+
+          const sorted = result.data.sort((a, b) =>
+            new Date(b.createdAt) - new Date(a.createdAt)
+          );
+
+          const pageData = sorted.slice(start, end);
+
+          pre.textContent = `分页结果 (第 ${page} 页，每页 ${pageSize} 条):\n`;
+          pre.textContent += `总记录数: ${result.data.length}\n`;
+          pre.textContent += `总页数: ${Math.ceil(result.data.length / pageSize)}\n\n`;
+          pre.textContent += JSON.stringify(pageData, null, 2);
+        } else {
+          pre.textContent = `查询失败: ${result.error}`;
+        }
+
+        resultBox.style.display = 'block';
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function runCustomQuery() {
+      const entity = document.getElementById('entity').value;
+      const field = document.getElementById('field').value;
+      const operator = document.getElementById('operator').value;
+      const value = document.getElementById('value').value;
+
+      if (!field || !value) {
+        alert('请选择字段并输入值');
+        return;
+      }
+
+      try {
+        const endpoint = entity === 'users'
+          ? '/api/data-example/users'
+          : '/api/data-example/products';
+
+        const response = await fetch(endpoint);
+        const result = await response.json();
+
+        const resultBox = document.getElementById('result4');
+        const pre = resultBox.querySelector('pre');
+
+        if (result.success) {
+          // 在客户端过滤（实际应在服务端实现）
+          let filtered = result.data;
+
+          switch (operator) {
+            case 'eq':
+              filtered = filtered.filter(item =>
+                String(item[field]).toLowerCase() === value.toLowerCase()
+              );
+              break;
+            case 'ne':
+              filtered = filtered.filter(item =>
+                String(item[field]).toLowerCase() !== value.toLowerCase()
+              );
+              break;
+            case 'gt':
+              filtered = filtered.filter(item =>
+                Number(item[field]) > Number(value)
+              );
+              break;
+            case 'lt':
+              filtered = filtered.filter(item =>
+                Number(item[field]) < Number(value)
+              );
+              break;
+            case 'like':
+              filtered = filtered.filter(item =>
+                String(item[field]).toLowerCase().includes(value.toLowerCase())
+              );
+              break;
+          }
+
+          pre.textContent = `查询结果 (${filtered.length} 条记录):\n\n`;
+          pre.textContent += JSON.stringify(filtered, null, 2);
+        } else {
+          pre.textContent = `查询失败: ${result.error}`;
+        }
+
+        resultBox.style.display = 'block';
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      }
+    }
+
+    async function loadStatistics() {
+      try {
+        // 加载用户数据
+        const usersResponse = await fetch('/api/data-example/users');
+        const usersResult = await usersResponse.json();
+
+        // 加载产品数据
+        const productsResponse = await fetch('/api/data-example/products');
+        const productsResult = await productsResponse.json();
+
+        if (usersResult.success && productsResult.success) {
+          const users = usersResult.data;
+          const products = productsResult.data;
+
+          // 计算统计数据
+          document.getElementById('stat1').textContent = users.length;
+          document.getElementById('stat2').textContent = users.filter(u => u.active).length;
+          document.getElementById('stat3').textContent = users.filter(u => u.role === 'admin').length;
+          document.getElementById('stat4').textContent = products.length;
+          document.getElementById('stat5').textContent = products.filter(p => p.stock < 20).length;
+
+          const avgPrice = products.length > 0
+            ? products.reduce((sum, p) => sum + p.price, 0) / products.length
+            : 0;
+          document.getElementById('stat6').textContent = '¥' + avgPrice.toFixed(2);
+        }
+      } catch (error) {
+        alert('加载统计数据失败: ' + error.message);
+      }
+    }
+
+    // 初始化字段列表
+    document.getElementById('entity').dispatchEvent(new Event('change'));
+  </script>
+</body>
+
+</html>
