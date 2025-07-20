@@ -2,14 +2,16 @@ package work.anyway.host;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import work.anyway.interfaces.plugin.ServiceRegistry;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simple service container that creates and caches service instances on demand
  */
-public class ServiceContainer {
+public class ServiceContainer implements ServiceRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(ServiceContainer.class);
   private final Map<String, Object> services = new ConcurrentHashMap<>();
@@ -32,6 +34,34 @@ public class ServiceContainer {
    */
   public <T> T getService(Class<T> serviceClass) {
     return getService(serviceClass.getName());
+  }
+
+  /**
+   * Register a service instance manually
+   */
+  @Override
+  public <T> void register(Class<T> serviceClass, T instance) {
+    services.put(serviceClass.getName(), instance);
+    LOG.info("Registered service instance: {} -> {}", serviceClass.getName(), instance.getClass().getName());
+  }
+
+  /**
+   * Lookup a service by its interface
+   */
+  @Override
+  public <T> Optional<T> lookup(Class<T> serviceClass) {
+    Object service = services.get(serviceClass.getName());
+    if (service != null) {
+      return Optional.of(serviceClass.cast(service));
+    }
+    // Try to create the service if not found
+    try {
+      T createdService = getService(serviceClass);
+      return Optional.ofNullable(createdService);
+    } catch (Exception e) {
+      LOG.debug("Service not found: {}", serviceClass.getName());
+      return Optional.empty();
+    }
   }
 
   private Object createService(String className) {

@@ -102,6 +102,10 @@ public class MainVerticle extends AbstractVerticle {
       // 创建服务容器
       serviceContainer = new ServiceContainer(classLoader);
 
+      // 注册 Vertx 实例到 ServiceContainer
+      serviceContainer.register(Vertx.class, vertx);
+      LOG.info("Registered Vertx instance to ServiceContainer");
+
       ServiceLoader<Plugin> serviceLoader = ServiceLoader.load(Plugin.class, classLoader);
 
       // 先找到并初始化 SystemPlugin，确保它先被加载
@@ -127,7 +131,7 @@ public class MainVerticle extends AbstractVerticle {
 
           // 注入服务并初始化
           injectServices(systemPlugin);
-          systemPlugin.initialize(router);
+          systemPlugin.initialize(router, serviceContainer);
           loadedPlugins.add(systemPlugin);
 
           LOG.info("System plugin loaded successfully");
@@ -144,7 +148,7 @@ public class MainVerticle extends AbstractVerticle {
           // 如果插件需要服务注入，使用反射设置
           injectServices(plugin);
 
-          plugin.initialize(router);
+          plugin.initialize(router, serviceContainer);
           loadedPlugins.add(plugin);
 
           // 注册到 SystemPlugin（如果存在）

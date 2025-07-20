@@ -135,6 +135,107 @@
       font-size: 64px;
       margin-bottom: 16px;
     }
+
+    /* 数据源状态样式 */
+    .datasource-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 40px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .datasource-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .datasource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .datasource-card {
+      border: 1px solid #e5e5e7;
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .datasource-card.default {
+      border-color: #0071e3;
+      background-color: #f0f8ff;
+    }
+
+    .datasource-name {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .datasource-info {
+      font-size: 14px;
+      color: #6e6e73;
+      line-height: 1.4;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    .status-connected {
+      background-color: #34c759;
+    }
+
+    .status-disconnected {
+      background-color: #ff3b30;
+    }
+
+    .status-pending {
+      background-color: #ff9500;
+    }
+
+    .default-badge {
+      background-color: #0071e3;
+      color: white;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+    }
+
+    .datasource-mode {
+      background-color: #f5f5f7;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mode-badge {
+      background-color: #0071e3;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .mode-badge.memory {
+      background-color: #ff9500;
+    }
   </style>
 </head>
 
@@ -142,6 +243,20 @@
   <div class="container">
     <h1>数据管理中心</h1>
     <p class="subtitle">管理和查看所有数据集合</p>
+
+    <!-- 数据源状态区域 -->
+    <div class="datasource-section">
+      <div class="datasource-header">
+        <h2>数据源状态</h2>
+        <button class="btn" onclick="refreshDataSources()">刷新</button>
+      </div>
+      <div id="datasourceMode" class="datasource-mode">
+        <span class="loading">正在检查数据源...</span>
+      </div>
+      <div id="datasources" class="datasource-grid">
+        <div class="loading">加载中...</div>
+      </div>
+    </div>
 
     <div id="collections" class="collection-grid">
       <div class="loading">加载中...</div>
@@ -161,8 +276,9 @@
     // 集合统计信息
     const collectionStats = {};
 
-    // 页面加载时获取所有集合
+    // 页面加载时获取所有集合和数据源
     document.addEventListener('DOMContentLoaded', () => {
+      loadDataSources();
       loadCollections();
     });
 
@@ -264,6 +380,72 @@
         console.error('创建集合失败:', error);
         alert('创建失败，请重试');
       }
+    }
+
+    // 加载数据源信息
+    async function loadDataSources() {
+      try {
+        const response = await fetch('/api/data/_datasources');
+        const data = await response.json();
+
+        const modeDiv = document.getElementById('datasourceMode');
+        const datasourcesDiv = document.getElementById('datasources');
+
+        if (data.success) {
+          // 显示数据存储模式
+          const mode = data.mode || 'memory';
+          const modeHtml = mode === 'database'
+            ? '<span class="mode-badge">数据库存储模式</span><span>数据将持久化保存到数据库</span>'
+            : '<span class="mode-badge memory">内存存储模式</span><span>数据仅保存在内存中，重启后将丢失</span>';
+          modeDiv.innerHTML = modeHtml;
+
+          // 显示数据源列表
+          if (data.datasources && data.datasources.length > 0) {
+            datasourcesDiv.innerHTML = data.datasources.map(ds => {
+              const isDefault = ds.name === data.defaultDataSource;
+              const statusClass = ds.status === 'connected' ? 'status-connected' :
+                ds.status === 'pending' ? 'status-pending' : 'status-disconnected';
+              const statusText = ds.status === 'connected' ? '已连接' :
+                ds.status === 'pending' ? '连接中' : '未连接';
+
+              return `
+                <div class="datasource-card ${isDefault ? 'default' : ''}">
+                  <div class="datasource-name">
+                    <span class="status-indicator ${statusClass}"></span>
+                    <span>${ds.name}</span>
+                    ${isDefault ? '<span class="default-badge">默认</span>' : ''}
+                  </div>
+                  <div class="datasource-info">
+                    <div>类型: ${ds.type || 'unknown'}</div>
+                    <div>主机: ${ds.host || 'N/A'}</div>
+                    <div>数据库: ${ds.database || 'N/A'}</div>
+                    <div>状态: ${statusText}</div>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          } else if (mode === 'database') {
+            datasourcesDiv.innerHTML = '<div class="empty-state">未找到配置的数据源</div>';
+          } else {
+            datasourcesDiv.innerHTML = '<div class="empty-state">使用内存存储，无需数据源配置</div>';
+          }
+        } else {
+          modeDiv.innerHTML = '<span class="mode-badge memory">内存存储模式</span><span>未配置数据源</span>';
+          datasourcesDiv.innerHTML = '<div class="empty-state">使用内存存储，无需数据源配置</div>';
+        }
+      } catch (error) {
+        console.error('加载数据源信息失败:', error);
+        document.getElementById('datasourceMode').innerHTML =
+          '<span style="color: #ff3b30;">加载数据源信息失败</span>';
+        document.getElementById('datasources').innerHTML =
+          '<div class="empty-state">无法获取数据源信息</div>';
+      }
+    }
+
+    // 刷新数据源
+    function refreshDataSources() {
+      document.getElementById('datasources').innerHTML = '<div class="loading">刷新中...</div>';
+      loadDataSources();
     }
   </script>
 </body>

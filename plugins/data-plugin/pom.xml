@@ -24,6 +24,12 @@
       <version>${project.version}</version>
     </dependency>
     
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>services.data</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
     <!-- Vert.x 依赖 -->
     <dependency>
       <groupId>io.vertx</groupId>
