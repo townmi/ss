@@ -7,19 +7,25 @@
 
   <parent>
     <groupId>work.anyway</groupId>
-    <artifactId>interfaces</artifactId>
+    <artifactId>work-anyway-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>interfaces.plugin</artifactId>
+  <artifactId>annotations</artifactId>
   <packaging>jar</packaging>
 
   <dependencies>
-    <!-- Vert.x Web API -->
+    <!-- Spring Core for @Component -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    
+    <!-- Vert.x Web for HttpMethod enum -->
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-web</artifactId>
-      <version>4.5.10</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>

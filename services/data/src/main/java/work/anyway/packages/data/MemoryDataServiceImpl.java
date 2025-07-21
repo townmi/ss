@@ -2,6 +2,8 @@ package work.anyway.packages.data;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 import work.anyway.interfaces.data.*;
 
 import java.util.*;
@@ -10,70 +12,120 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * 内存存储的数据服务实现
- * 数据仅保存在内存中，适用于开发测试或小规模应用
- * 
- * @author 作者名
- * @since 1.0.0
+ * 内存实现的数据服务
+ * 用于开发和测试，数据存储在内存中
  */
-public class MemoryDataServiceImpl implements TypedDataService {
+@Service("memoryDataService")
+public class MemoryDataServiceImpl implements DataService, TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(MemoryDataServiceImpl.class);
 
-  // 使用 ConcurrentHashMap 保证线程安全
-  private final Map<String, Map<String, Map<String, Object>>> dataStore = new ConcurrentHashMap<>();
+  // 存储所有集合的数据
+  private final Map<String, Map<String, Map<String, Object>>> collections = new ConcurrentHashMap<>();
 
   // ID 生成器
   private final Map<String, AtomicLong> idGenerators = new ConcurrentHashMap<>();
 
-  /**
-   * 默认构造函数
-   */
   public MemoryDataServiceImpl() {
-    LOG.info("MemoryDataServiceImpl initialized: Using memory storage mode");
+    LOG.info("Initializing MemoryDataServiceImpl with sample data");
+    initializeSampleData();
+  }
+
+  /**
+   * 初始化示例数据
+   */
+  private void initializeSampleData() {
+    // 初始化用户数据
+    Map<String, Object> user1 = new HashMap<>();
+    user1.put("name", "张三");
+    user1.put("email", "zhangsan@example.com");
+    user1.put("role", "admin");
+    save("users", user1);
+
+    Map<String, Object> user2 = new HashMap<>();
+    user2.put("name", "李四");
+    user2.put("email", "lisi@example.com");
+    user2.put("role", "user");
+    save("users", user2);
+
+    // 初始化产品数据
+    Map<String, Object> product1 = new HashMap<>();
+    product1.put("name", "笔记本电脑");
+    product1.put("price", 5999.00);
+    product1.put("category", "电子产品");
+    product1.put("stock", 50);
+    save("products", product1);
+
+    Map<String, Object> product2 = new HashMap<>();
+    product2.put("name", "无线鼠标");
+    product2.put("price", 99.00);
+    product2.put("category", "电脑配件");
+    product2.put("stock", 200);
+    save("products", product2);
+
+    // 初始化订单数据
+    Map<String, Object> order1 = new HashMap<>();
+    order1.put("orderNo", "ORD-2024-001");
+    order1.put("userId", "1");
+    order1.put("productId", "1");
+    order1.put("quantity", 1);
+    order1.put("totalAmount", 5999.00);
+    order1.put("status", "已完成");
+    save("orders", order1);
+
+    LOG.info("Sample data initialized: {} collections", collections.size());
   }
 
   @Override
   public Map<String, Object> save(String collection, Map<String, Object> data) {
     LOG.debug("Saving data to collection: {}", collection);
 
-    Map<String, Map<String, Object>> collectionData = getOrCreateCollection(collection);
+    Map<String, Map<String, Object>> collectionData = collections.computeIfAbsent(collection,
+        k -> new ConcurrentHashMap<>());
+    AtomicLong idGenerator = idGenerators.computeIfAbsent(collection, k -> new AtomicLong(0));
 
-    // 要求必须有 ID
-    if (!data.containsKey("id")) {
-      throw new IllegalArgumentException("ID is required");
+    // 复制数据以避免外部修改
+    Map<String, Object> dataCopy = new HashMap<>(data);
+
+    // 生成 ID
+    if (!dataCopy.containsKey("id")) {
+      dataCopy.put("id", String.valueOf(idGenerator.incrementAndGet()));
     }
 
-    String id = String.valueOf(data.get("id"));
+    String id = String.valueOf(dataCopy.get("id"));
 
-    // 创建数据副本
-    Map<String, Object> savedData = new HashMap<>(data);
-    collectionData.put(id, savedData);
+    // 添加时间戳
+    long now = System.currentTimeMillis();
+    dataCopy.put("createdAt", now);
+    dataCopy.put("updatedAt", now);
 
-    LOG.info("Data saved successfully, collection: {}, ID: {}", collection, id);
-    return new HashMap<>(savedData);
+    // 保存数据
+    collectionData.put(id, dataCopy);
+
+    LOG.info("Saved data with id {} to collection {}", id, collection);
+    return new HashMap<>(dataCopy);
   }
 
   @Override
   public Optional<Map<String, Object>> findById(String collection, String id) {
-    LOG.debug("Finding data by ID, collection: {}, ID: {}", collection, id);
+    LOG.debug("Finding data by id {} in collection {}", id, collection);
 
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
+    Map<String, Map<String, Object>> collectionData = collections.get(collection);
     if (collectionData == null) {
       return Optional.empty();
     }
 
     Map<String, Object> data = collectionData.get(id);
-    return Optional.ofNullable(data).map(HashMap::new);
+    return data == null ? Optional.empty() : Optional.of(new HashMap<>(data));
   }
 
   @Override
   public List<Map<String, Object>> findAll(String collection) {
-    LOG.debug("Finding all data, collection: {}", collection);
+    LOG.debug("Finding all data in collection {}", collection);
 
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
+    Map<String, Map<String, Object>> collectionData = collections.get(collection);
     if (collectionData == null) {
-      return Collections.emptyList();
+      return new ArrayList<>();
     }
 
     return collectionData.values().stream()
@@ -83,104 +135,82 @@ public class MemoryDataServiceImpl implements TypedDataService {
 
   @Override
   public List<Map<String, Object>> findByCriteria(String collection, Map<String, Object> criteria) {
-    LOG.debug("Finding data by criteria, collection: {}, criteria: {}", collection, criteria);
+    LOG.debug("Finding data by criteria {} in collection {}", criteria, collection);
 
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
-    if (collectionData == null) {
-      return Collections.emptyList();
-    }
-
-    return collectionData.values().stream()
+    return findAll(collection).stream()
         .filter(data -> matchesCriteria(data, criteria))
-        .map(HashMap::new)
         .collect(Collectors.toList());
   }
 
   @Override
   public boolean update(String collection, String id, Map<String, Object> data) {
-    LOG.debug("Updating data, collection: {}, ID: {}", collection, id);
+    LOG.debug("Updating data with id {} in collection {}", id, collection);
 
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
+    Map<String, Map<String, Object>> collectionData = collections.get(collection);
     if (collectionData == null || !collectionData.containsKey(id)) {
-      LOG.warn("Update failed, data not found, collection: {}, ID: {}", collection, id);
+      LOG.warn("Data not found for update: collection={}, id={}", collection, id);
       return false;
     }
 
     Map<String, Object> existingData = collectionData.get(id);
+    Map<String, Object> updatedData = new HashMap<>(existingData);
 
-    // 更新数据（保留 ID）
-    Map<String, Object> updatedData = new HashMap<>(data);
+    // 更新字段
+    updatedData.putAll(data);
+
+    // 保持 ID 不变
     updatedData.put("id", id);
 
-    // 如果原数据有 createdAt，保留它
-    if (existingData.containsKey("createdAt")) {
-      updatedData.put("createdAt", existingData.get("createdAt"));
-    }
+    // 更新时间戳
+    updatedData.put("updatedAt", System.currentTimeMillis());
 
     collectionData.put(id, updatedData);
 
-    LOG.info("Data updated successfully, collection: {}, ID: {}", collection, id);
+    LOG.info("Updated data with id {} in collection {}", id, collection);
     return true;
   }
 
   @Override
   public boolean delete(String collection, String id) {
-    LOG.debug("Deleting data, collection: {}, ID: {}", collection, id);
+    LOG.debug("Deleting data with id {} from collection {}", id, collection);
 
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
+    Map<String, Map<String, Object>> collectionData = collections.get(collection);
     if (collectionData == null) {
       return false;
     }
 
     Map<String, Object> removed = collectionData.remove(id);
-    boolean success = removed != null;
+    boolean deleted = removed != null;
 
-    if (success) {
-      LOG.info("Data deleted successfully, collection: {}, ID: {}", collection, id);
+    if (deleted) {
+      LOG.info("Deleted data with id {} from collection {}", id, collection);
     } else {
-      LOG.warn("Delete failed, data not found, collection: {}, ID: {}", collection, id);
+      LOG.warn("Data not found for deletion: collection={}, id={}", collection, id);
     }
 
-    return success;
+    return deleted;
   }
 
   @Override
   public long count(String collection) {
-    LOG.debug("Counting data, collection: {}", collection);
-
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
+    Map<String, Map<String, Object>> collectionData = collections.get(collection);
     return collectionData == null ? 0 : collectionData.size();
   }
 
   @Override
   public long countByCriteria(String collection, Map<String, Object> criteria) {
-    LOG.debug("Counting data by criteria, collection: {}, criteria: {}", collection, criteria);
-
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
-    if (collectionData == null) {
-      return 0;
-    }
-
-    return collectionData.values().stream()
-        .filter(data -> matchesCriteria(data, criteria))
-        .count();
+    return findByCriteria(collection, criteria).size();
   }
 
   @Override
   public PageResult<Map<String, Object>> query(String collection, QueryOptions options) {
-    LOG.debug("Paging query data, collection: {}, options: page={}, pageSize={}, sortBy={}",
-        collection, options.getPage(), options.getPageSize(), options.getSortBy());
+    LOG.debug("Querying collection {} with options: page={}, pageSize={}",
+        collection, options.getPage(), options.getPageSize());
 
-    Map<String, Map<String, Object>> collectionData = getCollection(collection);
-    if (collectionData == null) {
-      return new PageResult<>(Collections.emptyList(), 0, options.getPage(), options.getPageSize());
-    }
-
-    // 过滤数据
-    List<Map<String, Object>> filteredData = collectionData.values().stream()
-        .filter(data -> matchesCriteria(data, options.getFilters()))
-        .map(HashMap::new)
-        .collect(Collectors.toList());
+    // 获取过滤后的数据
+    List<Map<String, Object>> filteredData = options.getFilters().isEmpty()
+        ? findAll(collection)
+        : findByCriteria(collection, options.getFilters());
 
     // 排序
     if (options.getSortBy() != null) {
@@ -195,60 +225,49 @@ public class MemoryDataServiceImpl implements TypedDataService {
         if (bValue == null)
           return options.isAscending() ? 1 : -1;
 
-        int result = 0;
-        if (aValue instanceof Comparable && bValue instanceof Comparable) {
-          result = ((Comparable) aValue).compareTo(bValue);
-        } else {
-          result = aValue.toString().compareTo(bValue.toString());
-        }
-
+        int result = compareValues(aValue, bValue);
         return options.isAscending() ? result : -result;
       });
     }
 
     // 分页
     int total = filteredData.size();
-    int fromIndex = Math.min(options.getOffset(), total);
-    int toIndex = Math.min(fromIndex + options.getPageSize(), total);
+    int start = (options.getPage() - 1) * options.getPageSize();
+    int end = Math.min(start + options.getPageSize(), total);
 
-    List<Map<String, Object>> pageData = filteredData.subList(fromIndex, toIndex);
+    List<Map<String, Object>> pageData = start < total
+        ? filteredData.subList(start, end)
+        : new ArrayList<>();
 
     return new PageResult<>(pageData, total, options.getPage(), options.getPageSize());
   }
 
   @Override
   public int batchSave(String collection, List<Map<String, Object>> dataList) {
-    LOG.debug("Batch saving data, collection: {}, count: {}", collection, dataList.size());
-
-    int savedCount = 0;
+    int saved = 0;
     for (Map<String, Object> data : dataList) {
       try {
         save(collection, data);
-        savedCount++;
+        saved++;
       } catch (Exception e) {
-        LOG.error("Batch save failed, skipping this record", e);
+        LOG.error("Error saving data in batch", e);
       }
     }
-
-    LOG.info("Batch save completed, collection: {}, success: {}/{}", collection, savedCount, dataList.size());
-    return savedCount;
+    return saved;
   }
 
   @Override
   public int batchDelete(String collection, List<String> ids) {
-    LOG.debug("Batch deleting data, collection: {}, count: {}", collection, ids.size());
-
-    int deletedCount = 0;
+    int deleted = 0;
     for (String id : ids) {
       if (delete(collection, id)) {
-        deletedCount++;
+        deleted++;
       }
     }
-
-    LOG.info("Batch delete completed, collection: {}, success: {}/{}", collection, deletedCount, ids.size());
-    return deletedCount;
+    return deleted;
   }
 
+  // TypedDataService 实现
   @Override
   public <T extends Entity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
     return new RepositoryImpl<>(this, collectionDef, entityClass);
@@ -256,65 +275,61 @@ public class MemoryDataServiceImpl implements TypedDataService {
 
   @Override
   public <T extends Entity> Repository<T> getRepository(String table, Class<T> entityClass) {
-    CollectionDef collectionDef = CollectionDef.builder(table).entityClass(entityClass).build();
+    CollectionDef collectionDef = CollectionDef.builder(table).build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
   public <T extends Entity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
-    CollectionDef collectionDef = CollectionDef.builder(table)
-        .dataSource(dataSource)
-        .entityClass(entityClass)
-        .build();
+    CollectionDef collectionDef = CollectionDef.builder(table).dataSource(dataSource).build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
-  /**
-   * 获取或创建集合
-   */
-  private Map<String, Map<String, Object>> getOrCreateCollection(String collection) {
-    return dataStore.computeIfAbsent(collection, k -> new ConcurrentHashMap<>());
-  }
-
-  /**
-   * 获取集合
-   */
-  private Map<String, Map<String, Object>> getCollection(String collection) {
-    return dataStore.get(collection);
-  }
-
-  /**
-   * 生成唯一 ID
-   */
-  private String generateId(String collection) {
-    AtomicLong generator = idGenerators.computeIfAbsent(collection, k -> new AtomicLong(0));
-    return String.valueOf(generator.incrementAndGet());
-  }
-
-  /**
-   * 检查数据是否匹配查询条件
-   */
+  // 辅助方法
   private boolean matchesCriteria(Map<String, Object> data, Map<String, Object> criteria) {
-    if (criteria == null || criteria.isEmpty()) {
-      return true;
-    }
-
     for (Map.Entry<String, Object> entry : criteria.entrySet()) {
       String key = entry.getKey();
-      Object value = entry.getValue();
+      Object expectedValue = entry.getValue();
+      Object actualValue = data.get(key);
 
-      if (!data.containsKey(key)) {
-        return false;
-      }
-
-      Object dataValue = data.get(key);
-
-      // 简单的相等比较
-      if (!Objects.equals(value, dataValue)) {
+      if (!Objects.equals(expectedValue, actualValue)) {
         return false;
       }
     }
-
     return true;
+  }
+
+  private int compareValues(Object a, Object b) {
+    if (a instanceof Comparable && b instanceof Comparable) {
+      return ((Comparable) a).compareTo(b);
+    }
+    return String.valueOf(a).compareTo(String.valueOf(b));
+  }
+
+  /**
+   * 清空所有数据（仅用于测试）
+   */
+  public void clearAll() {
+    collections.clear();
+    idGenerators.clear();
+    LOG.warn("All data cleared from memory");
+  }
+
+  /**
+   * 清空指定集合的所有数据
+   * 仅供测试使用
+   * 
+   * @param collection 集合名称
+   */
+  public void clearCollection(String collection) {
+    collections.remove(collection);
+    idGenerators.remove(collection);
+    LOG.warn("Collection {} cleared from memory", collection);
+  }
+
+  @Override
+  public List<String> listCollections() {
+    LOG.debug("Listing all collections from memory");
+    return new ArrayList<>(collections.keySet());
   }
 }

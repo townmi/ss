@@ -58,7 +58,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.5.0</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -68,10 +68,11 @@
             <configuration>
               <artifactSet>
                 <includes>
+                  <!-- 包含接口和必要的运行时依赖 -->
+                  <include>work.anyway:interfaces.data</include>
                   <include>io.vertx:vertx-sql-client</include>
                   <include>io.vertx:vertx-mysql-client</include>
                   <include>io.vertx:vertx-pg-client</include>
-                  <include>com.fasterxml.jackson.core:*</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -84,6 +85,7 @@
                   </excludes>
                 </filter>
               </filters>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
             </configuration>
           </execution>
         </executions>

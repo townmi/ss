@@ -7,6 +7,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>annotations</module>
     <module>interfaces</module>
     <module>services</module>
     <module>plugins</module>
@@ -24,6 +25,8 @@
     <jackson.version>2.17.2</jackson.version>
     <!-- SLF4J 版本 -->
     <slf4j.version>2.0.7</slf4j.version>
+    <!-- Spring Core 版本 -->
+    <spring.version>6.1.2</spring.version>
   </properties>
 
   <dependencyManagement>
@@ -44,6 +47,30 @@
         <version>${jackson.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      
+      <!-- Spring Core (仅核心容器) -->
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>${spring.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-beans</artifactId>
+        <version>${spring.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-core</artifactId>
+        <version>${spring.version}</version>
+      </dependency>
+      
+      <!-- 项目内部依赖 -->
+      <dependency>
+        <groupId>work.anyway</groupId>
+        <artifactId>annotations</artifactId>
+        <version>${project.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -10,9 +10,6 @@
 
   <artifactId>services</artifactId>
   <packaging>pom</packaging>
-  
-  <name>Services</name>
-  <description>Service implementations</description>
 
   <modules>
     <module>auth</module>
@@ -20,4 +17,14 @@
     <module>data</module>
     <module>user</module>
   </modules>
+
+  <dependencies>
+    <!-- Spring Core for @Service -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
 </project> 

@@ -4,10 +4,13 @@ import io.vertx.core.Promise;
 import io.vertx.sqlclient.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
 import work.anyway.interfaces.data.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import io.vertx.core.json.JsonObject;
 
 /**
  * 同步数据库数据服务实现
@@ -16,7 +19,8 @@ import java.util.stream.Collectors;
  * @author 作者名
  * @since 1.0.0
  */
-public class SyncDatabaseDataServiceImpl implements TypedDataService {
+@Service("syncDatabaseDataService")
+public class SyncDatabaseDataServiceImpl implements DataService, TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(SyncDatabaseDataServiceImpl.class);
 
@@ -597,5 +601,53 @@ public class SyncDatabaseDataServiceImpl implements TypedDataService {
       }
     }
     return Tuple.from(values);
+  }
+
+  @Override
+  public List<String> listCollections() {
+    LOG.debug("Listing all collections");
+
+    Pool pool = dataSourceManager.getDefaultPool();
+    if (pool == null) {
+      LOG.warn("No database connection available, returning empty collection list");
+      return Collections.emptyList();
+    }
+
+    try {
+      // 获取默认数据源配置来判断数据库类型
+      Map<String, JsonObject> configs = dataSourceManager.getDataSourceConfigs();
+      String defaultDs = dataSourceManager.getDefaultDataSource();
+      JsonObject config = configs.get(defaultDs);
+      String dbType = config != null ? config.getString("type", "postgresql") : "postgresql";
+
+      // 根据数据库类型使用不同的查询
+      String query = dbType.toLowerCase().contains("postgres")
+          ? "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
+          : "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'";
+
+      List<String> collections = new ArrayList<>();
+
+      pool.preparedQuery(query)
+          .execute()
+          .onComplete(ar -> {
+            if (ar.succeeded()) {
+              RowSet<Row> rows = ar.result();
+              for (Row row : rows) {
+                collections.add(row.getString("TABLE_NAME"));
+              }
+            } else {
+              LOG.error("Failed to list collections from database", ar.cause());
+            }
+          })
+          .toCompletionStage()
+          .toCompletableFuture()
+          .get();
+
+      LOG.debug("Found {} collections", collections.size());
+      return collections;
+    } catch (Exception e) {
+      LOG.error("Error listing collections", e);
+      return Collections.emptyList();
+    }
   }
 }

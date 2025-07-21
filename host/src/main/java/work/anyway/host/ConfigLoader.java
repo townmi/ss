@@ -1,16 +1,27 @@
 package work.anyway.host;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Configuration loader utility
  */
 public class ConfigLoader {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
   private static final Properties properties = new Properties();
+
+  // 可配置的系统属性前缀
+  private static final Set<String> SYSTEM_PROPERTY_PREFIXES = new HashSet<>(Arrays.asList(
+      "http.", "plugins.", "vertx.", "service.", "datasource.", "spring."));
 
   static {
     loadProperties();
@@ -23,9 +34,9 @@ public class ConfigLoader {
     if (configFile != null) {
       try (InputStream is = new FileInputStream(configFile)) {
         properties.load(is);
-        System.out.println("Loaded configuration from: " + configFile);
+        LOG.info("Loaded configuration from: {}", configFile);
       } catch (IOException e) {
-        System.err.println("Failed to load config file: " + configFile);
+        LOG.error("Failed to load config file: {}", configFile, e);
       }
     }
 
@@ -33,21 +44,26 @@ public class ConfigLoader {
     try (InputStream is = ConfigLoader.class.getResourceAsStream("/application.properties")) {
       if (is != null) {
         properties.load(is);
-        System.out.println("Loaded configuration from classpath");
+        LOG.info("Loaded configuration from classpath");
       }
     } catch (IOException e) {
-      System.err.println("Failed to load configuration from classpath");
+      LOG.error("Failed to load configuration from classpath", e);
     }
 
     // 3. 系统属性覆盖配置文件
     System.getProperties().forEach((key, value) -> {
       String keyStr = key.toString();
-      if (keyStr.startsWith("http.") || keyStr.startsWith("plugins.") ||
-          keyStr.startsWith("vertx.") || keyStr.startsWith("service.") ||
-          keyStr.startsWith("datasource.")) {
+      if (isSystemPropertyAllowed(keyStr)) {
         properties.setProperty(keyStr, value.toString());
       }
     });
+  }
+
+  /**
+   * 检查系统属性是否允许覆盖配置
+   */
+  private static boolean isSystemPropertyAllowed(String key) {
+    return SYSTEM_PROPERTY_PREFIXES.stream().anyMatch(key::startsWith);
   }
 
   public static String getString(String key, String defaultValue) {
@@ -60,7 +76,7 @@ public class ConfigLoader {
       try {
         return Integer.parseInt(value);
       } catch (NumberFormatException e) {
-        System.err.println("Invalid integer value for " + key + ": " + value);
+        LOG.error("Invalid integer value for {}: {}", key, value);
       }
     }
     return defaultValue;
@@ -80,7 +96,7 @@ public class ConfigLoader {
       try {
         return Long.parseLong(value);
       } catch (NumberFormatException e) {
-        System.err.println("Invalid long value for " + key + ": " + value);
+        LOG.error("Invalid long value for {}: {}", key, value);
       }
     }
     return defaultValue;
@@ -97,11 +113,11 @@ public class ConfigLoader {
       if (keyStr.startsWith("datasource.")) {
         System.setProperty(keyStr, value.toString());
         String displayValue = keyStr.contains("password") ? "******" : value.toString();
-        System.out.println("  Setting system property: " + keyStr + " = " + displayValue);
+        LOG.info("  Setting system property: {} = {}", keyStr, displayValue);
         count[0]++;
       }
     });
-    System.out.println("Propagated " + count[0] + " datasource configuration(s) to system properties");
+    LOG.info("Propagated {} datasource configuration(s) to system properties", count[0]);
   }
 
   /**

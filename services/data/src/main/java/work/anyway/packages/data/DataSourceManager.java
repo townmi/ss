@@ -10,8 +10,15 @@ import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.PoolOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -21,7 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author 作者名
  * @since 1.0.0
  */
-public class DataSourceManager {
+@Component
+public class DataSourceManager implements InitializingBean, DisposableBean {
   private static final Logger LOG = LoggerFactory.getLogger(DataSourceManager.class);
 
   private final Vertx vertx;
@@ -34,10 +42,108 @@ public class DataSourceManager {
    * 
    * @param vertx Vert.x 实例
    */
+  @Autowired
   public DataSourceManager(Vertx vertx) {
     LOG.info("Initializing DataSourceManager with Vertx instance: {}", vertx);
     this.vertx = vertx;
     LOG.info("DataSourceManager initialized successfully");
+  }
+
+  /**
+   * Spring 初始化回调
+   */
+  @Override
+  public void afterPropertiesSet() throws Exception {
+    LOG.info("Initializing DataSource configurations...");
+
+    // 加载数据源配置
+    Properties config = loadDataSourceConfig();
+
+    // 解析并注册数据源
+    Map<String, JsonObject> parsedConfigs = parseDataSourceConfigs(config);
+
+    for (Map.Entry<String, JsonObject> entry : parsedConfigs.entrySet()) {
+      String dsName = entry.getKey();
+      JsonObject dsConfig = entry.getValue();
+
+      LOG.info("Registering datasource: {}", dsName);
+      LOG.debug("  Type: {}", dsConfig.getString("type"));
+      LOG.debug("  Host: {}", dsConfig.getString("host"));
+      LOG.debug("  Port: {}", dsConfig.getInteger("port"));
+      LOG.debug("  Database: {}", dsConfig.getString("database"));
+      LOG.debug("  User: {}", dsConfig.getString("user"));
+
+      registerDataSource(dsName, dsConfig);
+    }
+
+    // 设置默认数据源
+    String defaultDs = config.getProperty("datasource.default");
+    if (defaultDs != null && hasDataSource(defaultDs)) {
+      setDefaultDataSource(defaultDs);
+      LOG.info("Default datasource set to: {}", defaultDs);
+    }
+  }
+
+  /**
+   * 加载数据源配置
+   */
+  private Properties loadDataSourceConfig() {
+    Properties props = new Properties();
+
+    // 从 application.properties 加载
+    try (InputStream is = getClass().getResourceAsStream("/application.properties")) {
+      if (is != null) {
+        props.load(is);
+        LOG.info("Loaded datasource configuration from application.properties");
+      }
+    } catch (Exception e) {
+      LOG.debug("Could not load application.properties", e);
+    }
+
+    // 从系统属性加载（覆盖文件配置）
+    System.getProperties().forEach((key, value) -> {
+      String keyStr = key.toString();
+      if (keyStr.startsWith("datasource.")) {
+        props.setProperty(keyStr, value.toString());
+      }
+    });
+
+    return props;
+  }
+
+  /**
+   * 解析数据源配置
+   */
+  private Map<String, JsonObject> parseDataSourceConfigs(Properties props) {
+    Map<String, JsonObject> configs = new HashMap<>();
+
+    // 解析配置格式: datasource.<name>.<property>
+    props.forEach((key, value) -> {
+      String keyStr = key.toString();
+
+      if (keyStr.startsWith("datasource.") && !keyStr.equals("datasource.default")) {
+        String[] parts = keyStr.split("\\.", 3);
+        if (parts.length >= 3) {
+          String dsName = parts[1];
+          String property = parts[2];
+
+          JsonObject config = configs.computeIfAbsent(dsName, k -> new JsonObject());
+
+          // 尝试解析数字类型
+          String valueStr = value.toString().trim();
+          if (valueStr.matches("\\d+")) {
+            config.put(property, Integer.parseInt(valueStr));
+          } else if (valueStr.equalsIgnoreCase("true") || valueStr.equalsIgnoreCase("false")) {
+            config.put(property, Boolean.parseBoolean(valueStr));
+          } else {
+            config.put(property, valueStr);
+          }
+        }
+      }
+    });
+
+    LOG.info("Parsed {} datasource configurations", configs.size());
+    return configs;
   }
 
   /**
@@ -239,9 +345,10 @@ public class DataSourceManager {
   }
 
   /**
-   * 关闭所有连接池
+   * Spring 销毁回调
    */
-  public void close() {
+  @Override
+  public void destroy() throws Exception {
     LOG.info("Closing all datasource connection pools");
     dataSources.forEach((name, pool) -> {
       try {

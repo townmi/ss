@@ -1,45 +1,71 @@
 package work.anyway.packages.cache;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import work.anyway.interfaces.cache.CacheService;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 简单的内存缓存实现
+ */
+@Service
 public class CacheServiceImpl implements CacheService {
 
-  private static class Entry {
-    final Object value;
-    final long expireAt;
+  private static final Logger LOG = LoggerFactory.getLogger(CacheServiceImpl.class);
 
-    Entry(Object value, long expireAt) {
-      this.value = value;
-      this.expireAt = expireAt;
-    }
-  }
-
-  private final Map<String, Entry> map = new ConcurrentHashMap<>();
+  private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
   @Override
   public Object get(String key) {
-    Entry e = map.get(key);
-    if (e == null)
-      return null;
-    if (e.expireAt > 0 && e.expireAt < Instant.now().toEpochMilli()) {
-      map.remove(key);
+    CacheEntry entry = cache.get(key);
+    if (entry == null) {
       return null;
     }
-    return e.value;
+
+    if (entry.isExpired()) {
+      cache.remove(key);
+      LOG.debug("Cache expired for key: {}", key);
+      return null;
+    }
+
+    LOG.debug("Cache hit for key: {}", key);
+    return entry.getValue();
   }
 
   @Override
   public void put(String key, Object value, long ttlSeconds) {
-    long expireAt = ttlSeconds > 0 ? Instant.now().toEpochMilli() + ttlSeconds * 1000 : 0;
-    map.put(key, new Entry(value, expireAt));
+    long expirationTime = System.currentTimeMillis() + (ttlSeconds * 1000);
+    cache.put(key, new CacheEntry(value, expirationTime));
+    LOG.debug("Cached value for key: {} with TTL: {}s", key, ttlSeconds);
   }
 
   @Override
   public void remove(String key) {
-    map.remove(key);
+    cache.remove(key);
+    LOG.debug("Removed cache entry for key: {}", key);
+  }
+
+  /**
+   * 缓存条目
+   */
+  private static class CacheEntry {
+    private final Object value;
+    private final long expirationTime;
+
+    public CacheEntry(Object value, long expirationTime) {
+      this.value = value;
+      this.expirationTime = expirationTime;
+    }
+
+    public Object getValue() {
+      return value;
+    }
+
+    public boolean isExpired() {
+      return System.currentTimeMillis() > expirationTime;
+    }
   }
 }

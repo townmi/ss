@@ -6,12 +6,16 @@ import io.vertx.core.Vertx;
 import io.vertx.sqlclient.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 import work.anyway.interfaces.data.*;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import io.vertx.core.json.JsonObject;
 
 /**
  * 异步数据库数据服务实现
@@ -20,7 +24,9 @@ import java.util.stream.Collectors;
  * @author 作者名
  * @since 1.0.0
  */
-public class AsyncDatabaseDataServiceImpl implements TypedDataService {
+@Service("asyncDatabaseDataService")
+@Primary
+public class AsyncDatabaseDataServiceImpl implements DataService, TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDatabaseDataServiceImpl.class);
 
@@ -30,6 +36,7 @@ public class AsyncDatabaseDataServiceImpl implements TypedDataService {
   // 缓存，用于存储临时数据
   private final Map<String, Map<String, Map<String, Object>>> memoryCache = new ConcurrentHashMap<>();
 
+  @Autowired
   public AsyncDatabaseDataServiceImpl(DataSourceManager dataSourceManager, Vertx vertx) {
     this.dataSourceManager = dataSourceManager;
     this.vertx = vertx;
@@ -229,9 +236,13 @@ public class AsyncDatabaseDataServiceImpl implements TypedDataService {
           .execute()
           .onSuccess(rows -> {
             List<Map<String, Object>> results = new ArrayList<>();
+            LOG.debug("Query returned {} rows", rows.size());
             for (Row row : rows) {
-              results.add(rowToMap(row));
+              Map<String, Object> rowData = rowToMap(row);
+              LOG.debug("Row data: {}", rowData);
+              results.add(rowData);
             }
+            LOG.debug("Total results: {}", results.size());
             promise.complete(results);
           })
           .onFailure(err -> {
@@ -601,5 +612,51 @@ public class AsyncDatabaseDataServiceImpl implements TypedDataService {
 
   private Map<String, Map<String, Object>> getOrCreateCollection(String collection) {
     return memoryCache.computeIfAbsent(collection, k -> new ConcurrentHashMap<>());
+  }
+
+  @Override
+  public List<String> listCollections() {
+    LOG.debug("Listing all collections");
+
+    // 如果有数据库连接，查询数据库中的表
+    Pool pool = dataSourceManager.getDefaultPool();
+    if (pool != null) {
+      try {
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+
+        // 获取默认数据源配置来判断数据库类型
+        Map<String, JsonObject> configs = dataSourceManager.getDataSourceConfigs();
+        String defaultDs = dataSourceManager.getDefaultDataSource();
+        JsonObject config = configs.get(defaultDs);
+        String dbType = config != null ? config.getString("type", "postgresql") : "postgresql";
+
+        // 根据数据库类型使用不同的查询
+        String query = dbType.toLowerCase().contains("postgres")
+            ? "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
+            : "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'";
+
+        pool.query(query)
+            .execute()
+            .onSuccess(rows -> {
+              List<String> collections = new ArrayList<>();
+              for (Row row : rows) {
+                collections.add(row.getString("TABLE_NAME"));
+              }
+              future.complete(collections);
+            })
+            .onFailure(err -> {
+              LOG.error("Failed to list collections from database", err);
+              // 失败时返回内存中的集合
+              future.complete(new ArrayList<>(memoryCache.keySet()));
+            });
+
+        return future.get();
+      } catch (Exception e) {
+        LOG.error("Error listing collections", e);
+      }
+    }
+
+    // 如果没有数据库连接，返回内存中的集合
+    return new ArrayList<>(memoryCache.keySet());
   }
 }
