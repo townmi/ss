@@ -10,25 +10,38 @@ if not exist "%BASE%host\target\host-1.0.0-SNAPSHOT.jar" (
 )
 
 REM === Set configuration file path ===
-set "CONFIG_FILE=%BASE%host\src\main\resources\application.properties"
+REM Use external config file in project root directory
+set "CONFIG_FILE=%BASE%application.properties"
+
+REM === Check if external config exists ===
+if not exist "%CONFIG_FILE%" (
+    echo Warning: External config file not found at %CONFIG_FILE%
+    echo Application will use default configuration from JAR
+)
+
+REM === Convert to absolute path and handle spaces ===
+pushd "%BASE%"
+set "ABS_BASE=%CD%"
+popd
 
 REM === Set system properties ===
-set "JAVA_OPTS=-Dconfig.file=%CONFIG_FILE%"
-set "JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory=%BASE%libs\plugins"
-set "JAVA_OPTS=%JAVA_OPTS% -Dservices.directory=%BASE%libs\services"
-set "JAVA_OPTS=%JAVA_OPTS% -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory"
+REM Pass the config file path as an absolute path with quotes handled properly
+set JAVA_OPTS=-Dconfig.file="%ABS_BASE%\application.properties"
+set JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory="%ABS_BASE%\libs\plugins"
+set JAVA_OPTS=%JAVA_OPTS% -Dservices.directory="%ABS_BASE%\libs\services"
+set JAVA_OPTS=%JAVA_OPTS% -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory
 
 REM === Optional: Override settings from config file ===
-if not "%HTTP_PORT%"=="" set "JAVA_OPTS=%JAVA_OPTS% -Dhttp.port=%HTTP_PORT%"
-if not "%PLUGINS_DIR%"=="" set "JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory=%PLUGINS_DIR%"
+if not "%HTTP_PORT%"=="" set JAVA_OPTS=%JAVA_OPTS% -Dhttp.port=%HTTP_PORT%
+if not "%PLUGINS_DIR%"=="" set JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory="%PLUGINS_DIR%"
 
 REM === Start Host ===
 echo ========================================
 echo Starting Host with Vert.x...
 echo Config: %CONFIG_FILE%
-echo Port: 8080 (default, set HTTP_PORT to override)
-echo Plugin directory: %BASE%libs\plugins
-echo Service directory: %BASE%libs\services
+echo Port: Reading from config file
+echo Plugin directory: %ABS_BASE%\libs\plugins
+echo Service directory: %ABS_BASE%\libs\services
 echo ========================================
 echo.
 
