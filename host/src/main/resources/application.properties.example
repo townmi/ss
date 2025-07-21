@@ -10,63 +10,63 @@ plugins.enabled=true
 services.directory=libs/services
 services.enabled=true
 
-# 日志配置
+# Logging configuration
 logging.level=INFO
 logging.pattern=%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
 
-# 服务容器配置
+# Service container configuration
 service.container.cache.enabled=true
 service.container.lazy.init=true
 
-# Vert.x 配置
+# Vert.x configuration
 vertx.worker.pool.size=20
 vertx.event.loop.pool.size=2
 vertx.max.event.loop.execute.time=2000000000
 vertx.max.worker.execute.time=60000000000
 
-# 开发模式
+# Development mode
 dev.mode=false
 
-# 数据源配置
-# 默认数据源
+# Datasource configuration
+# Default datasource
 datasource.default=mysql
 
-# 主数据源配置 (PostgreSQL)
+# Main datasource configuration (PostgreSQL)
 # datasource.main.type=postgresql
 # datasource.main.host=localhost
 # datasource.main.port=5432
 # datasource.main.database=myapp_db
 # datasource.main.user=postgres
-# datasource.main.password=postgres
+# datasource.main.password=your_password_here
 # datasource.main.maxPoolSize=10
 
-# 测试数据源配置 (PostgreSQL) - 可选
+# Test datasource configuration (PostgreSQL) - Optional
 #datasource.test.type=postgresql
 #datasource.test.host=localhost
 #datasource.test.port=5432
 #datasource.test.database=test_db
 #datasource.test.user=test_user
-#datasource.test.password=test_pass
+#datasource.test.password=test_password_here
 #datasource.test.maxPoolSize=5
 
-# MySQL 数据源示例 - 可选
+# MySQL datasource example - Optional
 datasource.mysql.type=mysql
-datasource.mysql.host=10.236.0.76
+datasource.mysql.host=localhost
 datasource.mysql.port=3306
-datasource.mysql.database=dev_user_table
-datasource.mysql.user=root
-datasource.mysql.password=6yv0txz08jgex
+datasource.mysql.database=your_database_name
+datasource.mysql.user=your_username
+datasource.mysql.password=your_password_here
 datasource.mysql.maxPoolSize=10
 datasource.mysql.connectionTimeout=5000 
 datasource.mysql.idleTimeout=600000 
 
-# 分析数据源配置 - 可选
+# Analytics datasource configuration - Optional
 #datasource.analytics.type=postgresql
 #datasource.analytics.host=analytics.example.com
 #datasource.analytics.port=5432
 #datasource.analytics.database=analytics_db
 #datasource.analytics.user=analytics_user
-#datasource.analytics.password=analytics_pass
+#datasource.analytics.password=analytics_password_here
 #datasource.analytics.maxPoolSize=5
 #datasource.analytics.connectionTimeout=30000
 #datasource.analytics.idleTimeout=600000 

@@ -102,10 +102,12 @@ libs/plugins/*
 logs/
 *.log.*
 
-# Local configuration files
-application-local.properties
-application-*.properties
-!application.properties
+# Configuration files
+# Ignore all .properties files
+*.properties
+# But keep example files and Maven wrapper properties
+!*.properties.example
+!.mvn/wrapper/maven-wrapper.properties
 
 # Database files
 *.db
