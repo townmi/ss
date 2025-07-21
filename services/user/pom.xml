@@ -17,5 +17,18 @@
       <artifactId>interfaces.user</artifactId>
       <version>${project.version}</version>
     </dependency>
+    
+    <!-- Data Service Interface -->
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>interfaces.data</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
+    <!-- Logging -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
   </dependencies>
 </project> 

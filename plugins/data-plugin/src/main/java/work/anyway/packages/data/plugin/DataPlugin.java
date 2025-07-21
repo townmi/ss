@@ -1,6 +1,9 @@
 package work.anyway.packages.data.plugin;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -15,10 +18,13 @@ import work.anyway.interfaces.data.QueryOptions;
 import work.anyway.interfaces.data.TypedDataService;
 import work.anyway.interfaces.plugin.Plugin;
 import work.anyway.interfaces.plugin.ServiceRegistry;
-import work.anyway.packages.data.DataServiceImpl;
+import work.anyway.packages.data.MemoryDataServiceImpl;
+import work.anyway.packages.data.SyncDatabaseDataServiceImpl;
+import work.anyway.packages.data.AsyncDatabaseDataServiceImpl;
 import work.anyway.packages.data.DataSourceManager;
 
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -38,6 +44,7 @@ public class DataPlugin implements Plugin {
   private ServiceRegistry serviceRegistry;
 
   private ObjectMapper objectMapper; // 延迟初始化
+  private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
 
   @Override
   public String getName() {
@@ -81,30 +88,51 @@ public class DataPlugin implements Plugin {
     // 初始化数据源管理器
     initializeDataSourceManager();
 
-    // 检查 dataService 是否已被注入
-    if (dataService == null && registry != null) {
-      // 尝试从注册表获取
-      Optional<DataService> serviceOpt = registry.lookup(DataService.class);
-      if (serviceOpt.isPresent()) {
-        dataService = serviceOpt.get();
-      }
-    }
+    // 根据环境选择合适的数据服务实现
+    if (dataSourceManager != null) {
+      // 有数据源管理器，使用数据库模式
+      Vertx vertx = registry != null ? registry.lookup(Vertx.class).orElse(null) : null;
 
-    if (dataService == null) {
-      // 创建数据服务实现
-      if (dataSourceManager != null) {
-        LOG.info("Initializing DataService with database mode");
-        dataService = new DataServiceImpl(dataSourceManager);
+      if (vertx != null) {
+        // 有 Vertx 实例，使用异步数据库实现
+        LOG.info("Initializing DataService with async database mode");
+        dataService = new AsyncDatabaseDataServiceImpl(dataSourceManager, vertx);
       } else {
-        LOG.info("Initializing DataService with memory storage mode");
-        dataService = new DataServiceImpl(); // 使用内存存储
+        // 没有 Vertx 实例，使用同步数据库实现
+        LOG.warn("Vertx instance not found, falling back to synchronous database mode");
+        dataService = new SyncDatabaseDataServiceImpl(dataSourceManager);
       }
 
-      // 注册数据服务
+      // 注册服务
       if (registry != null) {
+        LOG.info("Registering database mode DataService");
         registry.register(DataService.class, dataService);
         if (dataService instanceof TypedDataService) {
           registry.register(TypedDataService.class, (TypedDataService) dataService);
+        }
+      }
+    } else {
+      // 没有数据源管理器，使用内存模式
+
+      // 先检查是否已有 DataService
+      if (dataService == null && registry != null) {
+        Optional<DataService> serviceOpt = registry.lookup(DataService.class);
+        if (serviceOpt.isPresent()) {
+          dataService = serviceOpt.get();
+          LOG.info("Using existing DataService instance");
+        }
+      }
+
+      // 如果还是没有，创建内存实现
+      if (dataService == null) {
+        LOG.info("Initializing DataService with memory storage mode");
+        dataService = new MemoryDataServiceImpl();
+
+        if (registry != null) {
+          registry.register(DataService.class, dataService);
+          if (dataService instanceof TypedDataService) {
+            registry.register(TypedDataService.class, (TypedDataService) dataService);
+          }
         }
       }
     }
@@ -133,225 +161,285 @@ public class DataPlugin implements Plugin {
   // API 处理方法
 
   private void queryData(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
+    String collection = ctx.pathParam("collection");
 
-      // 构建查询选项
-      QueryOptions options = QueryOptions.create()
-          .page(getIntParam(ctx, "page", 1))
-          .pageSize(getIntParam(ctx, "pageSize", 20));
+    // 构建查询选项
+    QueryOptions options = QueryOptions.create()
+        .page(getIntParam(ctx, "page", 1))
+        .pageSize(getIntParam(ctx, "pageSize", 20));
 
-      // 排序
-      String sortBy = ctx.queryParam("sortBy").stream().findFirst().orElse(null);
-      if (sortBy != null) {
-        options.sortBy(sortBy);
-        boolean ascending = getBoolParam(ctx, "ascending", true);
-        if (ascending) {
-          options.ascending();
-        } else {
-          options.descending();
-        }
+    // 排序
+    String sortBy = ctx.queryParam("sortBy").stream().findFirst().orElse(null);
+    if (sortBy != null) {
+      options.sortBy(sortBy);
+      boolean ascending = getBoolParam(ctx, "ascending", true);
+      if (ascending) {
+        options.ascending();
+      } else {
+        options.descending();
       }
-
-      // 过滤条件
-      ctx.queryParams().forEach(entry -> {
-        String key = entry.getKey();
-        if (!key.equals("page") && !key.equals("pageSize") &&
-            !key.equals("sortBy") && !key.equals("ascending")) {
-          options.filter(key, entry.getValue());
-        }
-      });
-
-      PageResult<Map<String, Object>> result = dataService.query(collection, options);
-
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("data", new JsonArray(result.getData()))
-          .put("total", result.getTotal())
-          .put("page", result.getPage())
-          .put("pageSize", result.getPageSize())
-          .put("totalPages", result.getTotalPages());
-
-      ctx.response()
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
-
-    } catch (Exception e) {
-      LOG.error("Query data failed", e);
-      sendError(ctx, 500, "Query failed: " + e.getMessage());
     }
+
+    // 过滤条件
+    ctx.queryParams().forEach(entry -> {
+      String key = entry.getKey();
+      if (!key.equals("page") && !key.equals("pageSize") &&
+          !key.equals("sortBy") && !key.equals("ascending")) {
+        options.filter(key, entry.getValue());
+      }
+    });
+
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<PageResult<Map<String, Object>>>executeBlocking(promise -> {
+      try {
+        PageResult<Map<String, Object>> result = dataService.query(collection, options);
+        promise.complete(result);
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        PageResult<Map<String, Object>> result = res.result();
+        JsonObject response = new JsonObject()
+            .put("success", true)
+            .put("data", new JsonArray(result.getData()))
+            .put("total", result.getTotal())
+            .put("page", result.getPage())
+            .put("pageSize", result.getPageSize())
+            .put("totalPages", result.getTotalPages());
+
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      } else {
+        LOG.error("Query data failed", res.cause());
+        sendError(ctx, 500, "Query failed: " + res.cause().getMessage());
+      }
+    });
   }
 
   private void getById(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      String id = ctx.pathParam("id");
+    String collection = ctx.pathParam("collection");
+    String id = ctx.pathParam("id");
 
-      Optional<Map<String, Object>> data = dataService.findById(collection, id);
-
-      if (data.isPresent()) {
-        JsonObject response = new JsonObject()
-            .put("success", true)
-            .put("data", new JsonObject(data.get()));
-
-        ctx.response()
-            .putHeader("content-type", "application/json")
-            .end(response.encode());
-      } else {
-        sendError(ctx, 404, "Data not found");
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Optional<Map<String, Object>>>executeBlocking(promise -> {
+      try {
+        Optional<Map<String, Object>> data = dataService.findById(collection, id);
+        promise.complete(data);
+      } catch (Exception e) {
+        promise.fail(e);
       }
+    }, false, res -> {
+      if (res.succeeded()) {
+        Optional<Map<String, Object>> data = res.result();
+        if (data.isPresent()) {
+          JsonObject response = new JsonObject()
+              .put("success", true)
+              .put("data", new JsonObject(data.get()));
 
-    } catch (Exception e) {
-      LOG.error("Get data failed", e);
-      sendError(ctx, 500, "Get failed: " + e.getMessage());
-    }
+          ctx.response()
+              .putHeader("content-type", "application/json")
+              .end(response.encode());
+        } else {
+          sendError(ctx, 404, "Data not found");
+        }
+      } else {
+        LOG.error("Get data failed", res.cause());
+        sendError(ctx, 500, "Get failed: " + res.cause().getMessage());
+      }
+    });
   }
 
   private void createData(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      JsonObject body = ctx.body().asJsonObject();
+    String collection = ctx.pathParam("collection");
+    JsonObject body = ctx.body().asJsonObject();
 
-      Map<String, Object> data = objectMapper.convertValue(body.getMap(), Map.class);
-      Map<String, Object> saved = dataService.save(collection, data);
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Map<String, Object>>executeBlocking(promise -> {
+      try {
+        Map<String, Object> data = objectMapper.convertValue(body.getMap(), Map.class);
+        Map<String, Object> saved = dataService.save(collection, data);
+        promise.complete(saved);
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        Map<String, Object> saved = res.result();
+        JsonObject response = new JsonObject()
+            .put("success", true)
+            .put("data", new JsonObject(saved));
 
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("data", new JsonObject(saved));
-
-      ctx.response()
-          .setStatusCode(201)
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
-
-    } catch (Exception e) {
-      LOG.error("Create data failed", e);
-      sendError(ctx, 500, "Create failed: " + e.getMessage());
-    }
+        ctx.response()
+            .setStatusCode(201)
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      } else {
+        LOG.error("Create data failed", res.cause());
+        sendError(ctx, 500, "Create failed: " + res.cause().getMessage());
+      }
+    });
   }
 
   private void updateData(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      String id = ctx.pathParam("id");
-      JsonObject body = ctx.body().asJsonObject();
+    String collection = ctx.pathParam("collection");
+    String id = ctx.pathParam("id");
+    JsonObject body = ctx.body().asJsonObject();
 
-      Map<String, Object> data = objectMapper.convertValue(body.getMap(), Map.class);
-      boolean success = dataService.update(collection, id, data);
-
-      if (success) {
-        JsonObject response = new JsonObject()
-            .put("success", true)
-            .put("message", "更新成功");
-
-        ctx.response()
-            .putHeader("content-type", "application/json")
-            .end(response.encode());
-      } else {
-        sendError(ctx, 404, "数据不存在");
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Boolean>executeBlocking(promise -> {
+      try {
+        Map<String, Object> data = objectMapper.convertValue(body.getMap(), Map.class);
+        boolean success = dataService.update(collection, id, data);
+        promise.complete(success);
+      } catch (Exception e) {
+        promise.fail(e);
       }
+    }, false, res -> {
+      if (res.succeeded()) {
+        boolean success = res.result();
+        if (success) {
+          JsonObject response = new JsonObject()
+              .put("success", true)
+              .put("message", "更新成功");
 
-    } catch (Exception e) {
-      LOG.error("Update data failed", e);
-      sendError(ctx, 500, "Update failed: " + e.getMessage());
-    }
+          ctx.response()
+              .putHeader("content-type", "application/json")
+              .end(response.encode());
+        } else {
+          sendError(ctx, 404, "数据不存在");
+        }
+      } else {
+        LOG.error("Update data failed", res.cause());
+        sendError(ctx, 500, "Update failed: " + res.cause().getMessage());
+      }
+    });
   }
 
   private void deleteData(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      String id = ctx.pathParam("id");
+    String collection = ctx.pathParam("collection");
+    String id = ctx.pathParam("id");
 
-      boolean success = dataService.delete(collection, id);
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Boolean>executeBlocking(promise -> {
+      try {
+        boolean success = dataService.delete(collection, id);
+        promise.complete(success);
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        boolean success = res.result();
+        if (success) {
+          JsonObject response = new JsonObject()
+              .put("success", true)
+              .put("message", "删除成功");
 
-      if (success) {
+          ctx.response()
+              .putHeader("content-type", "application/json")
+              .end(response.encode());
+        } else {
+          sendError(ctx, 404, "数据不存在");
+        }
+      } else {
+        LOG.error("Delete data failed", res.cause());
+        sendError(ctx, 500, "Delete failed: " + res.cause().getMessage());
+      }
+    });
+  }
+
+  private void batchCreate(RoutingContext ctx) {
+    String collection = ctx.pathParam("collection");
+    JsonArray body = ctx.body().asJsonArray();
+
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Integer>executeBlocking(promise -> {
+      try {
+        List<Map<String, Object>> dataList = new ArrayList<>();
+        for (Object item : body) {
+          if (item instanceof JsonObject) {
+            dataList.add(((JsonObject) item).getMap());
+          }
+        }
+
+        int savedCount = dataService.batchSave(collection, dataList);
+        promise.complete(savedCount);
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        int savedCount = res.result();
         JsonObject response = new JsonObject()
             .put("success", true)
-            .put("message", "删除成功");
+            .put("message", String.format("批量创建成功，共创建 %d 条数据", savedCount))
+            .put("count", savedCount);
+
+        ctx.response()
+            .setStatusCode(201)
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      } else {
+        LOG.error("Batch create failed", res.cause());
+        sendError(ctx, 500, "Batch create failed: " + res.cause().getMessage());
+      }
+    });
+  }
+
+  private void batchDelete(RoutingContext ctx) {
+    String collection = ctx.pathParam("collection");
+    JsonObject body = ctx.body().asJsonObject();
+    JsonArray ids = body.getJsonArray("ids");
+
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Integer>executeBlocking(promise -> {
+      try {
+        List<String> idList = new ArrayList<>();
+        for (Object id : ids) {
+          idList.add(String.valueOf(id));
+        }
+
+        int deletedCount = dataService.batchDelete(collection, idList);
+        promise.complete(deletedCount);
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        int deletedCount = res.result();
+        JsonObject response = new JsonObject()
+            .put("success", true)
+            .put("message", String.format("批量删除成功，共删除 %d 条数据", deletedCount))
+            .put("count", deletedCount);
 
         ctx.response()
             .putHeader("content-type", "application/json")
             .end(response.encode());
       } else {
-        sendError(ctx, 404, "数据不存在");
+        LOG.error("Batch delete failed", res.cause());
+        sendError(ctx, 500, "Batch delete failed: " + res.cause().getMessage());
       }
-
-    } catch (Exception e) {
-      LOG.error("Delete data failed", e);
-      sendError(ctx, 500, "Delete failed: " + e.getMessage());
-    }
-  }
-
-  private void batchCreate(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      JsonArray body = ctx.body().asJsonArray();
-
-      List<Map<String, Object>> dataList = new ArrayList<>();
-      for (Object item : body) {
-        if (item instanceof JsonObject) {
-          dataList.add(((JsonObject) item).getMap());
-        }
-      }
-
-      int savedCount = dataService.batchSave(collection, dataList);
-
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("message", String.format("批量创建成功，共创建 %d 条数据", savedCount))
-          .put("count", savedCount);
-
-      ctx.response()
-          .setStatusCode(201)
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
-
-    } catch (Exception e) {
-      LOG.error("Batch create failed", e);
-      sendError(ctx, 500, "Batch create failed: " + e.getMessage());
-    }
-  }
-
-  private void batchDelete(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      JsonObject body = ctx.body().asJsonObject();
-      JsonArray ids = body.getJsonArray("ids");
-
-      List<String> idList = new ArrayList<>();
-      for (Object id : ids) {
-        idList.add(String.valueOf(id));
-      }
-
-      int deletedCount = dataService.batchDelete(collection, idList);
-
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("message", String.format("批量删除成功，共删除 %d 条数据", deletedCount))
-          .put("count", deletedCount);
-
-      ctx.response()
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
-
-    } catch (Exception e) {
-      LOG.error("Batch delete failed", e);
-      sendError(ctx, 500, "Batch delete failed: " + e.getMessage());
-    }
+    });
   }
 
   // 页面处理方法
 
   private void getIndexPage(RoutingContext ctx) {
     try {
-      String html = readResourceFile("data-plugin/templates/index.html");
-      if (html != null) {
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response().setStatusCode(404).end("Page not found");
-      }
+      Mustache mustache = mustacheFactory.compile("data-plugin/templates/index.mustache");
+
+      Map<String, Object> data = new HashMap<>();
+      data.put("pluginName", getName());
+      data.put("pluginVersion", getVersion());
+
+      StringWriter writer = new StringWriter();
+      mustache.execute(writer, data);
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(writer.toString());
     } catch (Exception e) {
       LOG.error("Failed to render page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -359,40 +447,63 @@ public class DataPlugin implements Plugin {
   }
 
   private void getCollectionPage(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      String html = readResourceFile("data-plugin/templates/collection.html");
+    String collection = ctx.pathParam("collection");
 
-      if (html != null) {
-        // 替换集合名称
-        html = html.replace("{{collection}}", collection);
-
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response().setStatusCode(404).end("Page not found");
+    // 获取集合数据用于展示
+    ctx.vertx().<PageResult<Map<String, Object>>>executeBlocking(promise -> {
+      try {
+        QueryOptions options = QueryOptions.create()
+            .page(1)
+            .pageSize(20);
+        PageResult<Map<String, Object>> result = dataService.query(collection, options);
+        promise.complete(result);
+      } catch (Exception e) {
+        promise.fail(e);
       }
-    } catch (Exception e) {
-      LOG.error("Failed to render page", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+    }, false, res -> {
+      if (res.succeeded()) {
+        try {
+          Mustache mustache = mustacheFactory.compile("data-plugin/templates/collection.mustache");
+
+          PageResult<Map<String, Object>> result = res.result();
+          Map<String, Object> data = new HashMap<>();
+          data.put("collection", collection);
+          data.put("items", result.getData());
+          data.put("total", result.getTotal());
+          data.put("page", result.getPage());
+          data.put("totalPages", result.getTotalPages());
+
+          StringWriter writer = new StringWriter();
+          mustache.execute(writer, data);
+
+          ctx.response()
+              .putHeader("content-type", "text/html; charset=utf-8")
+              .end(writer.toString());
+        } catch (Exception e) {
+          LOG.error("Failed to render page", e);
+          ctx.response().setStatusCode(500).end("Internal Server Error");
+        }
+      } else {
+        LOG.error("Failed to load collection data", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   private void getCreatePage(RoutingContext ctx) {
     try {
       String collection = ctx.pathParam("collection");
-      String html = readResourceFile("data-plugin/templates/create.html");
+      Mustache mustache = mustacheFactory.compile("data-plugin/templates/create.mustache");
 
-      if (html != null) {
-        html = html.replace("{{collection}}", collection);
+      Map<String, Object> data = new HashMap<>();
+      data.put("collection", collection);
 
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response().setStatusCode(404).end("Page not found");
-      }
+      StringWriter writer = new StringWriter();
+      mustache.execute(writer, data);
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(writer.toString());
     } catch (Exception e) {
       LOG.error("Failed to render page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -400,25 +511,48 @@ public class DataPlugin implements Plugin {
   }
 
   private void getEditPage(RoutingContext ctx) {
-    try {
-      String collection = ctx.pathParam("collection");
-      String id = ctx.pathParam("id");
-      String html = readResourceFile("data-plugin/templates/edit.html");
+    String collection = ctx.pathParam("collection");
+    String id = ctx.pathParam("id");
 
-      if (html != null) {
-        html = html.replace("{{collection}}", collection)
-            .replace("{{id}}", id);
-
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response().setStatusCode(404).end("Page not found");
+    // 获取要编辑的数据
+    ctx.vertx().<Optional<Map<String, Object>>>executeBlocking(promise -> {
+      try {
+        Optional<Map<String, Object>> item = dataService.findById(collection, id);
+        promise.complete(item);
+      } catch (Exception e) {
+        promise.fail(e);
       }
-    } catch (Exception e) {
-      LOG.error("Failed to render page", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+    }, false, res -> {
+      if (res.succeeded()) {
+        Optional<Map<String, Object>> item = res.result();
+        if (item.isPresent()) {
+          try {
+            Mustache mustache = mustacheFactory.compile("data-plugin/templates/edit.mustache");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("collection", collection);
+            data.put("id", id);
+            data.put("item", item.get());
+            data.put("itemJson", objectMapper.writeValueAsString(item.get()));
+
+            StringWriter writer = new StringWriter();
+            mustache.execute(writer, data);
+
+            ctx.response()
+                .putHeader("content-type", "text/html; charset=utf-8")
+                .end(writer.toString());
+          } catch (Exception e) {
+            LOG.error("Failed to render page", e);
+            ctx.response().setStatusCode(500).end("Internal Server Error");
+          }
+        } else {
+          ctx.response().setStatusCode(404).end("Data not found");
+        }
+      } else {
+        LOG.error("Failed to load data for edit", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   // 辅助方法
@@ -632,7 +766,7 @@ public class DataPlugin implements Plugin {
           JsonObject config = configs.computeIfAbsent(dsName, k -> new JsonObject());
 
           // 尝试解析数字类型
-          String valueStr = value.toString();
+          String valueStr = value.toString().trim(); // 去除前后空格
           if (valueStr.matches("\\d+")) {
             config.put(property, Integer.parseInt(valueStr));
           } else if (valueStr.equalsIgnoreCase("true") || valueStr.equalsIgnoreCase("false")) {

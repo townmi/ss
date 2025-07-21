@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户详情 - {{user.name}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .breadcrumb {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb-inner {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .breadcrumb ul {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .breadcrumb li {
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb li:not(:last-child)::after {
+      content: '/';
+      margin: 0 10px;
+      color: #999;
+    }
+
+    .breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .breadcrumb a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+
+    .breadcrumb .current {
+      color: #666;
+      font-weight: 500;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .user-card {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+    }
+
+    .user-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .user-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: #3498db;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: bold;
+      margin-right: 20px;
+    }
+
+    .user-title h1 {
+      font-size: 28px;
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+
+    .user-id {
+      color: #7f8c8d;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .info-section {
+      margin-bottom: 30px;
+    }
+
+    .info-section h2 {
+      font-size: 18px;
+      color: #2c3e50;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-label {
+      font-size: 13px;
+      color: #7f8c8d;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      font-size: 16px;
+      color: #2c3e50;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background-color 0.3s;
+    }
+
+    .btn-primary {
+      background-color: #3498db;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #2980b9;
+    }
+
+    .btn-danger {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #c0392b;
+    }
+
+    .btn-secondary {
+      background-color: #95a5a6;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+    }
+
+    .error-state {
+      text-align: center;
+      padding: 60px 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .error-state h2 {
+      font-size: 24px;
+      color: #e74c3c;
+      margin-bottom: 10px;
+    }
+
+    .error-state p {
+      color: #7f8c8d;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="breadcrumb">
+    <div class="breadcrumb-inner">
+      <ul>
+        <li><a href="/page/">首页</a></li>
+        <li><a href="/page/users/">用户管理</a></li>
+        <li><a href="/page/users/list">用户列表</a></li>
+        <li class="current">用户详情</li>
+      </ul>
+    </div>
+  </nav>
+  
+  <div class="container">
+
+    {{#user}}
+    <div class="user-card">
+      <div class="user-header">
+        <div class="user-avatar">{{firstLetter}}</div>
+        <div class="user-title">
+          <h1>{{name}}</h1>
+          <div class="user-id">ID: {{id}}</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h2>基本信息</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">邮箱</span>
+            <span class="info-value">{{#email}}{{email}}{{/email}}{{^email}}未设置{{/email}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">电话</span>
+            <span class="info-value">{{#phone}}{{phone}}{{/phone}}{{^phone}}未设置{{/phone}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">状态</span>
+            <span class="info-value">{{#status}}{{status}}{{/status}}{{^status}}活跃{{/status}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">创建时间</span>
+            <span class="info-value">{{#createdAt}}{{createdAt}}{{/createdAt}}{{^createdAt}}未知{{/createdAt}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h2>其他信息</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">部门</span>
+            <span class="info-value">{{#department}}{{department}}{{/department}}{{^department}}未分配{{/department}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">角色</span>
+            <span class="info-value">{{#role}}{{role}}{{/role}}{{^role}}普通用户{{/role}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">最后登录</span>
+            <span class="info-value">{{#lastLogin}}{{lastLogin}}{{/lastLogin}}{{^lastLogin}}从未登录{{/lastLogin}}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">备注</span>
+            <span class="info-value">{{#notes}}{{notes}}{{/notes}}{{^notes}}无{{/notes}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" onclick="editUser()">编辑用户</button>
+        <button class="btn btn-danger" onclick="deleteUser()">删除用户</button>
+        <a href="/page/users/list" class="btn btn-secondary">返回列表</a>
+      </div>
+    </div>
+    {{/user}}
+
+    {{^user}}
+    <div class="error-state">
+      <h2>用户不存在</h2>
+      <p>找不到指定的用户信息</p>
+      <a href="/page/users/list" class="btn btn-primary">返回用户列表</a>
+    </div>
+    {{/user}}
+  </div>
+
+  <script>
+    var userId = {{#user}}'{{id}}'{{/user}}{{^user}}null{{/user}};
+    {{#user}}
+    var currentUserData = {
+      id: '{{id}}',
+      name: '{{name}}',
+      email: {{#email}}'{{email}}'{{/email}}{{^email}}null{{/email}},
+      phone: {{#phone}}'{{phone}}'{{/phone}}{{^phone}}null{{/phone}},
+      status: {{#status}}'{{status}}'{{/status}}{{^status}}'active'{{/status}},
+      department: {{#department}}'{{department}}'{{/department}}{{^department}}null{{/department}},
+      role: {{#role}}'{{role}}'{{/role}}{{^role}}'user'{{/role}},
+      notes: {{#notes}}'{{notes}}'{{/notes}}{{^notes}}null{{/notes}}
+    };
+    {{/user}}
+
+    function editUser() {
+      if (userId && typeof currentUserData !== 'undefined') {
+        // 使用预定义的用户数据
+        const userData = currentUserData;
+        
+        // 创建编辑表单
+        const formHtml = `
+          <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2>编辑用户信息</h2>
+            <form id="editForm" style="margin-top: 20px;">
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">姓名:</label>
+                <input type="text" id="editName" value="${userData.name || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">邮箱:</label>
+                <input type="email" id="editEmail" value="${userData.email || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">电话:</label>
+                <input type="text" id="editPhone" value="${userData.phone || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">部门:</label>
+                <input type="text" id="editDepartment" value="${userData.department || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">角色:</label>
+                <select id="editRole" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="user" ${userData.role === 'user' ? 'selected' : ''}>普通用户</option>
+                  <option value="admin" ${userData.role === 'admin' ? 'selected' : ''}>管理员</option>
+                </select>
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">状态:</label>
+                <select id="editStatus" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="active" ${userData.status === 'active' ? 'selected' : ''}>活跃</option>
+                  <option value="inactive" ${userData.status === 'inactive' ? 'selected' : ''}>未激活</option>
+                </select>
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">备注:</label>
+                <textarea id="editNotes" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 80px;">${userData.notes || ''}</textarea>
+              </div>
+              <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="cancelEdit()" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                <button type="submit" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+              </div>
+            </form>
+          </div>
+        `;
+        
+        // 替换用户卡片内容
+        document.querySelector('.user-card').innerHTML = formHtml;
+        
+        // 添加表单提交事件
+        document.getElementById('editForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          saveUserEdit();
+        });
+      }
+    }
+    
+    function saveUserEdit() {
+      const updateData = {
+        name: document.getElementById('editName').value,
+        email: document.getElementById('editEmail').value,
+        phone: document.getElementById('editPhone').value || null,
+        department: document.getElementById('editDepartment').value || null,
+        role: document.getElementById('editRole').value,
+        status: document.getElementById('editStatus').value,
+        notes: document.getElementById('editNotes').value || null
+      };
+      
+      fetch('/users/' + userId, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      })
+      .then(response => {
+        if (response.ok) {
+          alert('用户信息更新成功');
+          location.reload();
+        } else {
+          alert('更新失败：' + response.statusText);
+        }
+      })
+      .catch(error => {
+        alert('更新失败：' + error.message);
+      });
+    }
+    
+    function cancelEdit() {
+      location.reload();
+    }
+
+    function deleteUser() {
+      if (userId && confirm('确定要删除该用户吗？此操作不可恢复。')) {
+        fetch('/users/' + userId, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(response => {
+          if (response.ok) {
+            alert('用户删除成功');
+            window.location.href = '/page/users/list';
+          } else {
+            alert('删除失败：' + response.statusText);
+          }
+        })
+        .catch(error => {
+          alert('删除失败：' + error.message);
+        });
+      }
+    }
+  </script>
+</body>
+
+</html> 

@@ -18,6 +18,53 @@
             line-height: 1.6;
         }
 
+        .breadcrumb {
+            background-color: #fff;
+            padding: 12px 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .breadcrumb-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .breadcrumb ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 0;
+            padding: 0;
+        }
+
+        .breadcrumb li {
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb li:not(:last-child)::after {
+            content: '/';
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .breadcrumb a {
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        .breadcrumb .current {
+            color: #666;
+            font-weight: 500;
+        }
+
         .hero {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -171,6 +218,14 @@
     </style>
 </head>
 <body>
+    <nav class="breadcrumb">
+        <div class="breadcrumb-inner">
+            <ul>
+                <li class="current">首页</li>
+            </ul>
+        </div>
+    </nav>
+    
     <div class="hero">
         <div class="container">
             <h1>插件管理系统</h1>

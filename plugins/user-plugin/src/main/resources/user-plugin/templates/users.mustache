@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html>
 
 <head>
   <meta charset="UTF-8">
@@ -17,6 +17,52 @@
       background-color: #f5f5f5;
       color: #333;
       line-height: 1.6;
+    }
+
+    .breadcrumb {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .breadcrumb ul {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .breadcrumb li {
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb li:not(:last-child)::after {
+      content: '/';
+      margin: 0 10px;
+      color: #999;
+    }
+
+    .breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .breadcrumb a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+
+    .breadcrumb .current {
+      color: #666;
+      font-weight: 500;
     }
 
     .container {
@@ -158,12 +204,17 @@
 </head>
 
 <body>
-  <div class="container">
-    <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 10px;">
-      <a href="/page/users/" style="color: #3498db; text-decoration: none;">用户管理</a>
-      <span style="margin: 0 10px; color: #95a5a6;">›</span>
-      <span>用户列表</span>
+  <nav class="breadcrumb">
+    <div class="breadcrumb-inner">
+      <ul>
+        <li><a href="/page/">首页</a></li>
+        <li><a href="/page/users/">用户管理</a></li>
+        <li class="current">用户列表</li>
+      </ul>
     </div>
+  </nav>
+  
+  <div class="container">
 
     <div class="header">
       <h1>用户管理系统</h1>
@@ -172,7 +223,7 @@
 
     <div class="actions">
       <div>
-        <span>共 <strong th:text="${#lists.size(users)}">0</strong> 个用户</span>
+        <span>共 <strong>{{userCount}}</strong> 个用户</span>
       </div>
       <div>
         <button class="btn btn-success" onclick="showCreateUserForm()">创建新用户</button>
@@ -180,9 +231,12 @@
     </div>
 
     <div class="table-container">
-      <div th:if="${error}" class="error-message" th:text="${error}"></div>
+      {{#error}}
+      <div class="error-message">{{error}}</div>
+      {{/error}}
 
-      <table th:if="${users != null and #lists.size(users) > 0}">
+      {{#hasUsers}}
+      <table>
         <thead>
           <tr>
             <th>用户ID</th>
@@ -193,26 +247,39 @@
           </tr>
         </thead>
         <tbody>
-          <!--USER_ROWS-->
+          {{#users}}
+          <tr>
+            <td class="user-id">{{id}}</td>
+            <td class="user-name">{{name}}</td>
+            <td class="user-email">{{email}}</td>
+            <td>{{createdAt}}</td>
+            <td class="action-links">
+              <a href="/page/users/{{id}}">查看详情</a>
+              <a href="#" onclick="editUser(this)" data-id="{{id}}">编辑</a>
+              <a href="#" onclick="deleteUser(this)" data-id="{{id}}" style="color: #e74c3c;">删除</a>
+            </td>
+          </tr>
+          {{/users}}
         </tbody>
       </table>
+      {{/hasUsers}}
 
-      <div th:if="${users == null or #lists.size(users) == 0}" class="empty-state">
+      {{^hasUsers}}
+      <div class="empty-state">
         <h2>暂无用户数据</h2>
         <p>系统中还没有任何用户，点击上方按钮创建第一个用户</p>
       </div>
+      {{/hasUsers}}
     </div>
   </div>
 
   <script>
     function showCreateUserForm() {
-      // 跳转到创建用户页面
       window.location.href = '/page/users/create';
     }
 
     function editUser(element) {
       const userId = element.getAttribute('data-id');
-      // 跳转到用户详情页面进行编辑
       window.location.href = '/page/users/' + userId;
     }
 
@@ -225,20 +292,20 @@
             'Content-Type': 'application/json'
           }
         })
-          .then(response => {
-            if (response.ok) {
-              alert('用户删除成功');
-              location.reload();
-            } else {
-              alert('删除失败：' + response.statusText);
-            }
-          })
-          .catch(error => {
-            alert('删除失败：' + error.message);
-          });
+        .then(response => {
+          if (response.ok) {
+            alert('用户删除成功');
+            location.reload();
+          } else {
+            alert('删除失败：' + response.statusText);
+          }
+        })
+        .catch(error => {
+          alert('删除失败：' + error.message);
+        });
       }
     }
   </script>
 </body>
 
-</html>
+</html> 

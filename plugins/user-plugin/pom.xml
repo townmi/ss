@@ -18,13 +18,17 @@
       <version>${project.version}</version>
     </dependency>
     
+    <!-- 用户接口 -->
     <dependency>
-      <groupId>work.anyway</groupId>
-      <artifactId>interfaces.user</artifactId>
-      <version>${project.version}</version>
+        <groupId>work.anyway</groupId>
+        <artifactId>interfaces.user</artifactId>
+        <version>${project.version}</version>
     </dependency>
     
-    <!-- Vert.x 依赖，由 Host 提供 -->
+    <!-- 数据接口 -->
+
+    
+    <!-- Vert.x 依赖 (provided) -->
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-web</artifactId>
@@ -37,14 +41,21 @@
       <scope>provided</scope>
     </dependency>
     
-    <!-- Jackson 依赖，由 Host 提供 -->
+    <!-- Jackson (provided) -->
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <scope>provided</scope>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <scope>provided</scope>
     </dependency>
     
-    <!-- 日志依赖，由 Host 提供 -->
+    <!-- Mustache 模板引擎 -->
+    <dependency>
+        <groupId>com.github.spullara.mustache.java</groupId>
+        <artifactId>compiler</artifactId>
+        <version>0.9.13</version>
+    </dependency>
+    
+    <!-- SLF4J (provided) -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>

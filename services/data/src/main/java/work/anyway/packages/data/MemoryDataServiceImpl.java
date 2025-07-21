@@ -10,46 +10,27 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * 数据访问服务实现
- * 支持多数据源和类型安全的数据访问
+ * 内存存储的数据服务实现
+ * 数据仅保存在内存中，适用于开发测试或小规模应用
  * 
  * @author 作者名
  * @since 1.0.0
  */
-public class DataServiceImpl implements TypedDataService {
+public class MemoryDataServiceImpl implements TypedDataService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DataServiceImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MemoryDataServiceImpl.class);
 
-  // 数据源管理器（可选）
-  private DataSourceManager dataSourceManager;
-
-  // 使用 ConcurrentHashMap 保证线程安全（内存存储模式）
+  // 使用 ConcurrentHashMap 保证线程安全
   private final Map<String, Map<String, Map<String, Object>>> dataStore = new ConcurrentHashMap<>();
 
   // ID 生成器
   private final Map<String, AtomicLong> idGenerators = new ConcurrentHashMap<>();
 
-  // 是否使用数据库模式
-  private final boolean useDatabaseMode;
-
   /**
-   * 默认构造函数 - 使用内存存储
+   * 默认构造函数
    */
-  public DataServiceImpl() {
-    this.useDatabaseMode = false;
-    this.dataSourceManager = null;
-    LOG.info("DataServiceImpl initialized: Using memory storage mode");
-  }
-
-  /**
-   * 数据库模式构造函数
-   * 
-   * @param dataSourceManager 数据源管理器
-   */
-  public DataServiceImpl(DataSourceManager dataSourceManager) {
-    this.dataSourceManager = dataSourceManager;
-    this.useDatabaseMode = true;
-    LOG.info("DataServiceImpl initialized: Using database storage mode");
+  public MemoryDataServiceImpl() {
+    LOG.info("MemoryDataServiceImpl initialized: Using memory storage mode");
   }
 
   @Override
@@ -58,15 +39,15 @@ public class DataServiceImpl implements TypedDataService {
 
     Map<String, Map<String, Object>> collectionData = getOrCreateCollection(collection);
 
-    // 生成 ID
-    String id = data.containsKey("id") ? String.valueOf(data.get("id")) : generateId(collection);
+    // 要求必须有 ID
+    if (!data.containsKey("id")) {
+      throw new IllegalArgumentException("ID is required");
+    }
 
-    // 创建数据副本并添加 ID
+    String id = String.valueOf(data.get("id"));
+
+    // 创建数据副本
     Map<String, Object> savedData = new HashMap<>(data);
-    savedData.put("id", id);
-    savedData.put("createdAt", new Date());
-    savedData.put("updatedAt", new Date());
-
     collectionData.put(id, savedData);
 
     LOG.info("Data saved successfully, collection: {}, ID: {}", collection, id);
@@ -127,11 +108,14 @@ public class DataServiceImpl implements TypedDataService {
 
     Map<String, Object> existingData = collectionData.get(id);
 
-    // 更新数据（保留 ID 和创建时间）
+    // 更新数据（保留 ID）
     Map<String, Object> updatedData = new HashMap<>(data);
     updatedData.put("id", id);
-    updatedData.put("createdAt", existingData.get("createdAt"));
-    updatedData.put("updatedAt", new Date());
+
+    // 如果原数据有 createdAt，保留它
+    if (existingData.containsKey("createdAt")) {
+      updatedData.put("createdAt", existingData.get("createdAt"));
+    }
 
     collectionData.put(id, updatedData);
 
@@ -180,51 +164,6 @@ public class DataServiceImpl implements TypedDataService {
     return collectionData.values().stream()
         .filter(data -> matchesCriteria(data, criteria))
         .count();
-  }
-
-  /**
-   * 获取或创建集合
-   */
-  private Map<String, Map<String, Object>> getOrCreateCollection(String collection) {
-    return dataStore.computeIfAbsent(collection, k -> new ConcurrentHashMap<>());
-  }
-
-  /**
-   * 获取集合
-   */
-  private Map<String, Map<String, Object>> getCollection(String collection) {
-    return dataStore.get(collection);
-  }
-
-  /**
-   * 生成唯一 ID
-   */
-  private String generateId(String collection) {
-    AtomicLong generator = idGenerators.computeIfAbsent(collection, k -> new AtomicLong(0));
-    return String.valueOf(generator.incrementAndGet());
-  }
-
-  /**
-   * 检查数据是否匹配查询条件
-   */
-  private boolean matchesCriteria(Map<String, Object> data, Map<String, Object> criteria) {
-    for (Map.Entry<String, Object> entry : criteria.entrySet()) {
-      String key = entry.getKey();
-      Object value = entry.getValue();
-
-      if (!data.containsKey(key)) {
-        return false;
-      }
-
-      Object dataValue = data.get(key);
-
-      // 简单的相等比较
-      if (!Objects.equals(value, dataValue)) {
-        return false;
-      }
-    }
-
-    return true;
   }
 
   @Override
@@ -328,5 +267,54 @@ public class DataServiceImpl implements TypedDataService {
         .entityClass(entityClass)
         .build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
+  }
+
+  /**
+   * 获取或创建集合
+   */
+  private Map<String, Map<String, Object>> getOrCreateCollection(String collection) {
+    return dataStore.computeIfAbsent(collection, k -> new ConcurrentHashMap<>());
+  }
+
+  /**
+   * 获取集合
+   */
+  private Map<String, Map<String, Object>> getCollection(String collection) {
+    return dataStore.get(collection);
+  }
+
+  /**
+   * 生成唯一 ID
+   */
+  private String generateId(String collection) {
+    AtomicLong generator = idGenerators.computeIfAbsent(collection, k -> new AtomicLong(0));
+    return String.valueOf(generator.incrementAndGet());
+  }
+
+  /**
+   * 检查数据是否匹配查询条件
+   */
+  private boolean matchesCriteria(Map<String, Object> data, Map<String, Object> criteria) {
+    if (criteria == null || criteria.isEmpty()) {
+      return true;
+    }
+
+    for (Map.Entry<String, Object> entry : criteria.entrySet()) {
+      String key = entry.getKey();
+      Object value = entry.getValue();
+
+      if (!data.containsKey(key)) {
+        return false;
+      }
+
+      Object dataValue = data.get(key);
+
+      // 简单的相等比较
+      if (!Objects.equals(value, dataValue)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

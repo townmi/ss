@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>数据集合 - {{collection}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    
+    .breadcrumb {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .breadcrumb ul {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 0;
+    }
+
+    .breadcrumb li {
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb li:not(:last-child)::after {
+      content: '/';
+      margin: 0 10px;
+      color: #999;
+    }
+
+    .breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .breadcrumb a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+
+    .breadcrumb .current {
+      color: #666;
+      font-weight: 500;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .toolbar {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn {
+      background: #2196F3;
+      color: white;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .btn:hover {
+      background: #1976D2;
+    }
+    .btn-danger {
+      background: #f44336;
+    }
+    .btn-danger:hover {
+      background: #d32f2f;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+    }
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+    .actions {
+      white-space: nowrap;
+    }
+    .actions a {
+      margin-right: 10px;
+      color: #2196F3;
+      text-decoration: none;
+    }
+    .actions a:hover {
+      text-decoration: underline;
+    }
+    .pagination {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .pagination span {
+      margin: 0 10px;
+    }
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <nav class="breadcrumb">
+    <div class="breadcrumb-inner">
+      <ul>
+        <li><a href="/page/">首页</a></li>
+        <li><a href="/page/data/">数据管理</a></li>
+        <li class="current">{{collection}}</li>
+      </ul>
+    </div>
+  </nav>
+  
+  <div class="container">
+    <h1>数据集合: {{collection}}</h1>
+    
+    <div class="toolbar">
+      <div>
+        <a href="/page/data/create/{{collection}}" class="btn">新建数据</a>
+        <a href="/page/data/" class="btn" style="background: #666;">返回首页</a>
+      </div>
+      <div>
+        共 {{total}} 条记录
+      </div>
+    </div>
+    
+    {{^items}}
+    <div class="empty">
+      <p>暂无数据</p>
+      <p><a href="/page/data/create/{{collection}}">点击创建第一条数据</a></p>
+    </div>
+    {{/items}}
+    
+    {{#items}}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>数据内容</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#.}}
+        <tr>
+          <td>{{id}}</td>
+          <td>
+            <pre style="margin: 0; white-space: pre-wrap;">{{.}}</pre>
+          </td>
+          <td class="actions">
+            <a href="/page/data/edit/{{collection}}/{{id}}">编辑</a>
+            <a href="#" onclick="deleteItem('{{id}}'); return false;" style="color: #f44336;">删除</a>
+          </td>
+        </tr>
+        {{/.}}
+      </tbody>
+    </table>
+    {{/items}}
+    
+    {{#totalPages}}
+    <div class="pagination">
+      <span>第 {{page}} 页，共 {{totalPages}} 页</span>
+    </div>
+    {{/totalPages}}
+  </div>
+  
+  <script>
+    function deleteItem(id) {
+      if (confirm('确定要删除这条数据吗？')) {
+        fetch('/api/data/{{collection}}/' + id, {
+          method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert('删除失败: ' + (data.error || '未知错误'));
+          }
+        })
+        .catch(error => {
+          alert('删除失败: ' + error.message);
+        });
+      }
+    }
+  </script>
+</body>
+</html> 

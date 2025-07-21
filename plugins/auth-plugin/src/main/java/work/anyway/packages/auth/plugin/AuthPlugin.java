@@ -2,6 +2,9 @@ package work.anyway.packages.auth.plugin;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -13,6 +16,7 @@ import work.anyway.interfaces.auth.PermissionService;
 import work.anyway.interfaces.plugin.Plugin;
 
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -21,6 +25,7 @@ public class AuthPlugin implements Plugin {
   private static final Logger LOG = LoggerFactory.getLogger(AuthPlugin.class);
   private PermissionService permissionService; // 将由容器自动注入
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
 
   // 预定义的权限列表
   private static final List<String> AVAILABLE_PERMISSIONS = Arrays.asList(
@@ -94,107 +99,147 @@ public class AuthPlugin implements Plugin {
 
   // API 处理方法
   private void getUserPermissions(RoutingContext ctx) {
-    try {
-      String userId = ctx.pathParam("userId");
+    String userId = ctx.pathParam("userId");
 
-      // 获取用户的所有权限
-      List<String> permissions = new ArrayList<>();
-      for (String permission : AVAILABLE_PERMISSIONS) {
-        if (permissionService.hasPermission(userId, permission)) {
-          permissions.add(permission);
-        }
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Set<String>>executeBlocking(promise -> {
+      try {
+        Set<String> permissions = permissionService.getUserPermissions(userId);
+        promise.complete(permissions);
+      } catch (Exception e) {
+        promise.fail(e);
       }
+    }, false, res -> {
+      if (res.succeeded()) {
+        try {
+          Set<String> permissions = res.result();
+          JsonObject response = new JsonObject()
+              .put("userId", userId)
+              .put("permissions", new JsonArray(new ArrayList<>(permissions)));
 
-      JsonObject response = new JsonObject()
-          .put("userId", userId)
-          .put("permissions", new JsonArray(permissions));
-
-      sendJsonResponse(ctx.response(), response);
-    } catch (Exception e) {
-      LOG.error("Error getting user permissions", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+          ctx.response()
+              .putHeader("content-type", "application/json")
+              .end(response.encode());
+        } catch (Exception e) {
+          LOG.error("Error encoding response", e);
+          ctx.response().setStatusCode(500).end("Internal Server Error");
+        }
+      } else {
+        LOG.error("Error getting user permissions", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   private void grantPermission(RoutingContext ctx) {
-    try {
-      String userId = ctx.pathParam("userId");
-      JsonObject body = ctx.body().asJsonObject();
+    String userId = ctx.pathParam("userId");
+    JsonObject body = ctx.body().asJsonObject();
+    String permission = body.getString("permission");
 
-      if (body == null || !body.containsKey("permission")) {
-        ctx.response().setStatusCode(400).end("Permission is required");
-        return;
-      }
-
-      String permission = body.getString("permission");
-      permissionService.grantPermission(userId, permission);
-
-      JsonObject response = new JsonObject()
-          .put("message", "Permission granted successfully")
-          .put("userId", userId)
-          .put("permission", permission);
-
-      sendJsonResponse(ctx.response(), response);
-    } catch (Exception e) {
-      LOG.error("Error granting permission", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
+    if (permission == null || permission.isEmpty()) {
+      ctx.response()
+          .setStatusCode(400)
+          .end("Permission is required");
+      return;
     }
+
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Void>executeBlocking(promise -> {
+      try {
+        permissionService.grantPermission(userId, permission);
+        promise.complete();
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        JsonObject response = new JsonObject()
+            .put("success", true)
+            .put("message", "Permission granted successfully");
+
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      } else {
+        LOG.error("Error granting permission", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   private void revokePermission(RoutingContext ctx) {
-    try {
-      String userId = ctx.pathParam("userId");
-      String permission = ctx.pathParam("permission");
+    String userId = ctx.pathParam("userId");
+    String permission = ctx.pathParam("permission");
 
-      permissionService.revokePermission(userId, permission);
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Void>executeBlocking(promise -> {
+      try {
+        permissionService.revokePermission(userId, permission);
+        promise.complete();
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        JsonObject response = new JsonObject()
+            .put("success", true)
+            .put("message", "Permission revoked successfully");
 
-      JsonObject response = new JsonObject()
-          .put("message", "Permission revoked successfully")
-          .put("userId", userId)
-          .put("permission", permission);
-
-      sendJsonResponse(ctx.response(), response);
-    } catch (Exception e) {
-      LOG.error("Error revoking permission", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      } else {
+        LOG.error("Error revoking permission", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   private void checkPermission(RoutingContext ctx) {
-    try {
-      String userId = ctx.pathParam("userId");
-      String permission = ctx.pathParam("permission");
+    String userId = ctx.pathParam("userId");
+    String permission = ctx.pathParam("permission");
 
-      boolean hasPermission = permissionService.hasPermission(userId, permission);
+    // 使用 executeBlocking 避免阻塞事件循环
+    ctx.vertx().<Boolean>executeBlocking(promise -> {
+      try {
+        boolean hasPermission = permissionService.hasPermission(userId, permission);
+        promise.complete(hasPermission);
+      } catch (Exception e) {
+        promise.fail(e);
+      }
+    }, false, res -> {
+      if (res.succeeded()) {
+        JsonObject response = new JsonObject()
+            .put("userId", userId)
+            .put("permission", permission)
+            .put("hasPermission", res.result());
 
-      JsonObject response = new JsonObject()
-          .put("userId", userId)
-          .put("permission", permission)
-          .put("hasPermission", hasPermission);
-
-      sendJsonResponse(ctx.response(), response);
-    } catch (Exception e) {
-      LOG.error("Error checking permission", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      } else {
+        LOG.error("Error checking permission", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   // 页面处理方法
   private void getIndexPage(RoutingContext ctx) {
     try {
-      LOG.info("AuthPlugin: Loading index.html from classpath");
-      String html = readResourceFile("auth-plugin/templates/index.html");
-      if (html != null) {
-        // 添加一个标识来确认是哪个插件的页面
-        html = html.replace("</body>", "<!-- AuthPlugin --></body>");
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response()
-            .setStatusCode(404)
-            .end("Template not found");
-      }
+      // 使用 Mustache 模板渲染
+      Mustache mustache = mustacheFactory.compile("auth-plugin/templates/index.mustache");
+
+      Map<String, Object> data = new HashMap<>();
+      data.put("pluginName", getName());
+      data.put("availablePermissions", AVAILABLE_PERMISSIONS);
+
+      StringWriter writer = new StringWriter();
+      mustache.execute(writer, data);
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(writer.toString());
     } catch (Exception e) {
       LOG.error("Error rendering index page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -203,16 +248,17 @@ public class AuthPlugin implements Plugin {
 
   private void getPermissionsPage(RoutingContext ctx) {
     try {
-      String html = readResourceFile("auth-plugin/templates/permissions.html");
-      if (html != null) {
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response()
-            .setStatusCode(404)
-            .end("Template not found");
-      }
+      Mustache mustache = mustacheFactory.compile("auth-plugin/templates/permissions.mustache");
+
+      Map<String, Object> data = new HashMap<>();
+      data.put("availablePermissions", AVAILABLE_PERMISSIONS);
+
+      StringWriter writer = new StringWriter();
+      mustache.execute(writer, data);
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(writer.toString());
     } catch (Exception e) {
       LOG.error("Error rendering permissions page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -220,26 +266,46 @@ public class AuthPlugin implements Plugin {
   }
 
   private void getUserPermissionsPage(RoutingContext ctx) {
-    try {
-      String userId = ctx.pathParam("userId");
-      String template = readResourceFile("auth-plugin/templates/user-permissions.html");
+    String userId = ctx.pathParam("userId");
 
-      if (template != null) {
-        // 替换用户ID
-        template = template.replaceAll("\\{\\{userId\\}\\}", userId);
-
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(template);
-      } else {
-        ctx.response()
-            .setStatusCode(404)
-            .end("Template not found");
+    // 使用 executeBlocking 获取用户权限
+    ctx.vertx().<Set<String>>executeBlocking(promise -> {
+      try {
+        Set<String> permissions = permissionService.getUserPermissions(userId);
+        promise.complete(permissions);
+      } catch (Exception e) {
+        promise.fail(e);
       }
-    } catch (Exception e) {
-      LOG.error("Error rendering user permissions page", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+    }, false, res -> {
+      if (res.succeeded()) {
+        try {
+          Mustache mustache = mustacheFactory.compile("auth-plugin/templates/user-permissions.mustache");
+
+          Map<String, Object> data = new HashMap<>();
+          data.put("userId", userId);
+          data.put("userPermissions", res.result());
+          data.put("availablePermissions", AVAILABLE_PERMISSIONS);
+
+          // 计算哪些权限用户还没有
+          Set<String> missingPermissions = new HashSet<>(AVAILABLE_PERMISSIONS);
+          missingPermissions.removeAll(res.result());
+          data.put("missingPermissions", missingPermissions);
+
+          StringWriter writer = new StringWriter();
+          mustache.execute(writer, data);
+
+          ctx.response()
+              .putHeader("content-type", "text/html; charset=utf-8")
+              .end(writer.toString());
+        } catch (Exception e) {
+          LOG.error("Error rendering user permissions page", e);
+          ctx.response().setStatusCode(500).end("Internal Server Error");
+        }
+      } else {
+        LOG.error("Error getting user permissions for page", res.cause());
+        ctx.response().setStatusCode(500).end("Internal Server Error");
+      }
+    });
   }
 
   private void sendJsonResponse(HttpServerResponse response, Object data) {

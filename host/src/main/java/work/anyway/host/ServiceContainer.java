@@ -97,11 +97,70 @@ public class ServiceContainer implements ServiceRegistry {
       // 创建实例
       Object instance = clazz.getDeclaredConstructor().newInstance();
       LOG.info("Created service instance: {} -> {}", className, instance.getClass().getName());
+
+      // 注入依赖
+      injectDependencies(instance);
+
       return instance;
 
     } catch (Exception e) {
       LOG.error("Failed to create service: " + className, e);
       return null;
+    }
+  }
+
+  /**
+   * 注入服务的依赖
+   */
+  private void injectDependencies(Object instance) {
+    Class<?> clazz = instance.getClass();
+
+    // 查找所有字段
+    java.lang.reflect.Field[] fields = clazz.getDeclaredFields();
+
+    for (java.lang.reflect.Field field : fields) {
+      // 查找类型为 Service 结尾的字段
+      if (field.getType().getName().endsWith("Service")) {
+        try {
+          field.setAccessible(true);
+          Object currentValue = field.get(instance);
+
+          // 如果字段为空，尝试注入
+          if (currentValue == null) {
+            Object service = getService(field.getType().getName());
+            if (service != null) {
+              field.set(instance, service);
+              LOG.info("Injected {} into {}", field.getType().getSimpleName(), instance.getClass().getSimpleName());
+            } else {
+              LOG.warn("No service found for type: {}", field.getType().getName());
+            }
+          }
+        } catch (Exception e) {
+          LOG.warn("Failed to inject service {} into {}: {}",
+              field.getType().getSimpleName(), instance.getClass().getSimpleName(), e.getMessage());
+        }
+      }
+    }
+
+    // 查找 setter 方法
+    java.lang.reflect.Method[] methods = clazz.getMethods();
+    for (java.lang.reflect.Method method : methods) {
+      if (method.getName().startsWith("set") &&
+          method.getParameterCount() == 1 &&
+          method.getParameterTypes()[0].getName().endsWith("Service")) {
+        try {
+          Object service = getService(method.getParameterTypes()[0].getName());
+          if (service != null) {
+            method.invoke(instance, service);
+            LOG.info("Injected {} via setter into {}",
+                method.getParameterTypes()[0].getSimpleName(),
+                instance.getClass().getSimpleName());
+          }
+        } catch (Exception e) {
+          LOG.warn("Failed to inject service via setter {} into {}: {}",
+              method.getName(), instance.getClass().getSimpleName(), e.getMessage());
+        }
+      }
     }
   }
 }

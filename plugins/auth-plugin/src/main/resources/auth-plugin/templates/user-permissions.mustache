@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>用户权限 - {{userId}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    
+    .breadcrumb {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb-inner {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .breadcrumb ul {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 0;
+    }
+
+    .breadcrumb li {
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb li:not(:last-child)::after {
+      content: '/';
+      margin: 0 10px;
+      color: #999;
+    }
+
+    .breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .breadcrumb a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+
+    .breadcrumb .current {
+      color: #666;
+      font-weight: 500;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .permissions-section {
+      margin-bottom: 30px;
+    }
+    .permission-list {
+      list-style: none;
+      padding: 0;
+    }
+    .permission-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: #f0f0f0;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .permission-item.has-permission {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+    }
+    .permission-item.no-permission {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
+    button {
+      padding: 5px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .grant-btn {
+      background: #28a745;
+      color: white;
+    }
+    .revoke-btn {
+      background: #dc3545;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <nav class="breadcrumb">
+    <div class="breadcrumb-inner">
+      <ul>
+        <li><a href="/page/">首页</a></li>
+        <li><a href="/page/auth/">权限管理</a></li>
+        <li><a href="/page/auth/permissions">权限列表</a></li>
+        <li class="current">用户权限详情</li>
+      </ul>
+    </div>
+  </nav>
+  
+  <div class="container">
+    <h1>用户权限管理: {{userId}}</h1>
+    
+    <div class="permissions-section">
+      <h2>当前权限</h2>
+      <ul class="permission-list">
+        {{#userPermissions}}
+        <li class="permission-item has-permission">
+          <span>{{.}}</span>
+          <button class="revoke-btn" onclick="revokePermission('{{userId}}', '{{.}}')">撤销</button>
+        </li>
+        {{/userPermissions}}
+        {{^userPermissions}}
+        <li>该用户暂无任何权限</li>
+        {{/userPermissions}}
+      </ul>
+    </div>
+    
+    <div class="permissions-section">
+      <h2>可授予权限</h2>
+      <ul class="permission-list">
+        {{#missingPermissions}}
+        <li class="permission-item no-permission">
+          <span>{{.}}</span>
+          <button class="grant-btn" onclick="grantPermission('{{userId}}', '{{.}}')">授予</button>
+        </li>
+        {{/missingPermissions}}
+        {{^missingPermissions}}
+        <li>该用户已拥有所有权限</li>
+        {{/missingPermissions}}
+      </ul>
+    </div>
+    
+    <div style="margin-top: 20px;">
+      <a href="/page/auth/permissions">返回权限列表</a>
+    </div>
+  </div>
+  
+  <script>
+    function grantPermission(userId, permission) {
+      fetch('/auth/permissions/' + userId, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ permission: permission })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        }
+      });
+    }
+    
+    function revokePermission(userId, permission) {
+      fetch('/auth/permissions/' + userId + '/' + permission, {
+        method: 'DELETE'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        }
+      });
+    }
+  </script>
+</body>
+</html> 

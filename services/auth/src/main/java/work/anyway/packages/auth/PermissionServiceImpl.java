@@ -23,4 +23,9 @@ public class PermissionServiceImpl implements PermissionService {
   public void revokePermission(String userId, String permission) {
     perms.getOrDefault(userId, Set.of()).remove(permission);
   }
+
+  @Override
+  public Set<String> getUserPermissions(String userId) {
+    return Set.copyOf(perms.getOrDefault(userId, Set.of()));
+  }
 }

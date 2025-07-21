@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{pluginName}} - 权限管理</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .breadcrumb {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .breadcrumb-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .breadcrumb ul {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .breadcrumb li {
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb li:not(:last-child)::after {
+      content: '/';
+      margin: 0 10px;
+      color: #999;
+    }
+
+    .breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .breadcrumb a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+
+    .breadcrumb .current {
+      color: #666;
+      font-weight: 500;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .hero p {
+      font-size: 20px;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .feature-card {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .feature-card h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    .feature-card p {
+      color: #666;
+      line-height: 1.8;
+    }
+
+    .permissions-section {
+      background: white;
+      border-radius: 10px;
+      padding: 40px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .permissions-section h2 {
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 32px;
+      text-align: center;
+    }
+
+    .permissions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .permission-item {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      padding: 15px 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: #495057;
+      transition: all 0.3s ease;
+    }
+
+    .permission-item:hover {
+      background: #e9ecef;
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .action-buttons {
+      text-align: center;
+      margin-top: 60px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 15px 40px;
+      margin: 0 10px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 30px;
+      font-size: 18px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      background: #764ba2;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="breadcrumb">
+    <div class="breadcrumb-inner">
+      <ul>
+        <li><a href="/page/">首页</a></li>
+        <li class="current">权限管理</li>
+      </ul>
+    </div>
+  </nav>
+  
+  <div class="hero">
+    <h1>🔐 {{pluginName}}</h1>
+    <p>全面的权限管理系统，保护您的应用安全</p>
+  </div>
+
+  <div class="container">
+    <div class="features">
+      <div class="feature-card">
+        <h3>🛡️ 细粒度权限控制</h3>
+        <p>支持基于角色和资源的权限管理，可以精确控制每个用户的访问权限，确保数据安全。</p>
+      </div>
+      <div class="feature-card">
+        <h3>⚡ 实时权限验证</h3>
+        <p>提供高性能的权限验证接口，毫秒级响应，不影响系统性能。</p>
+      </div>
+      <div class="feature-card">
+        <h3>📊 可视化管理</h3>
+        <p>直观的界面设计，让权限管理变得简单易懂，支持批量操作，提高管理效率。</p>
+      </div>
+    </div>
+
+    <div class="permissions-section">
+      <h2>系统权限列表</h2>
+      <div class="permissions-grid">
+        {{#availablePermissions}}
+        <div class="permission-item">{{.}}</div>
+        {{/availablePermissions}}
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <a href="/page/auth/permissions" class="btn">管理权限</a>
+      <a href="/page/auth/user/test-user" class="btn btn-secondary">查看用户权限</a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>{{pluginName}} v1.0.0 - Powered by Work Anyway Framework</p>
+  </div>
+</body>
+
+</html> 

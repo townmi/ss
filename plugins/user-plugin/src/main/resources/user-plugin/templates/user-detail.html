@@ -277,14 +277,129 @@
 
     function editUser() {
       if (userId) {
-        alert('编辑用户 ' + userId + ' 功能待实现');
+        // 获取当前显示的用户信息
+        const userData = {
+          name: document.querySelector('.info-value').textContent,
+          email: document.querySelectorAll('.info-value')[1].textContent,
+          phone: document.querySelectorAll('.info-value')[2].textContent,
+          status: document.querySelectorAll('.info-value')[3].textContent,
+          department: document.querySelectorAll('.info-value')[5].textContent,
+          role: document.querySelectorAll('.info-value')[6].textContent,
+          notes: document.querySelectorAll('.info-value')[8].textContent
+        };
+
+        // 创建编辑表单
+        const formHtml = `
+          <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h2>编辑用户信息</h2>
+            <form id="editForm" style="margin-top: 20px;">
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">姓名:</label>
+                <input type="text" id="editName" value="${userData.name}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">邮箱:</label>
+                <input type="email" id="editEmail" value="${userData.email}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">电话:</label>
+                <input type="text" id="editPhone" value="${userData.phone !== '未设置' ? userData.phone : ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">部门:</label>
+                <input type="text" id="editDepartment" value="${userData.department !== '未分配' ? userData.department : ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">角色:</label>
+                <select id="editRole" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="user" ${userData.role === '普通用户' ? 'selected' : ''}>普通用户</option>
+                  <option value="admin" ${userData.role === '管理员' ? 'selected' : ''}>管理员</option>
+                </select>
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">状态:</label>
+                <select id="editStatus" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="active" ${userData.status === '活跃' ? 'selected' : ''}>活跃</option>
+                  <option value="inactive" ${userData.status === '未激活' ? 'selected' : ''}>未激活</option>
+                </select>
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">备注:</label>
+                <textarea id="editNotes" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 80px;">${userData.notes !== '无' ? userData.notes : ''}</textarea>
+              </div>
+              <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="cancelEdit()" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                <button type="submit" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+              </div>
+            </form>
+          </div>
+        `;
+
+        // 替换用户卡片内容
+        document.querySelector('.user-card').innerHTML = formHtml;
+
+        // 添加表单提交事件
+        document.getElementById('editForm').addEventListener('submit', function (e) {
+          e.preventDefault();
+          saveUserEdit();
+        });
       }
+    }
+
+    function saveUserEdit() {
+      const updateData = {
+        name: document.getElementById('editName').value,
+        email: document.getElementById('editEmail').value,
+        phone: document.getElementById('editPhone').value || null,
+        department: document.getElementById('editDepartment').value || null,
+        role: document.getElementById('editRole').value,
+        status: document.getElementById('editStatus').value,
+        notes: document.getElementById('editNotes').value || null
+      };
+
+      fetch('/users/' + userId, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      })
+        .then(response => {
+          if (response.ok) {
+            alert('用户信息更新成功');
+            location.reload();
+          } else {
+            alert('更新失败：' + response.statusText);
+          }
+        })
+        .catch(error => {
+          alert('更新失败：' + error.message);
+        });
+    }
+
+    function cancelEdit() {
+      location.reload();
     }
 
     function deleteUser() {
       if (userId && confirm('确定要删除该用户吗？此操作不可恢复。')) {
-        alert('删除功能待实现');
-        // 实际实现时应该发送 DELETE 请求到 /users/{id}
+        fetch('/users/' + userId, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+          .then(response => {
+            if (response.ok) {
+              alert('用户删除成功');
+              window.location.href = '/page/users/list';
+            } else {
+              alert('删除失败：' + response.statusText);
+            }
+          })
+          .catch(error => {
+            alert('删除失败：' + error.message);
+          });
       }
     }
   </script>
