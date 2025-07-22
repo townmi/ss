@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - 系统插件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .breadcrumb {
+            background-color: #fff;
+            padding: 12px 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .breadcrumb-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .breadcrumb ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 0;
+            padding: 0;
+        }
+
+        .breadcrumb li {
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb li:not(:last-child)::after {
+            content: '/';
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .nav-bar {
+            background-color: #fff;
+            padding: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .nav-bar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            margin-left: auto;
+        }
+
+        .nav-links a {
+            color: #666;
+            text-decoration: none;
+            padding: 1rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #4a5568;
+            border-bottom-color: #667eea;
+        }
+
+        .nav-links a.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #718096;
+        }
+
+        .log-controls {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background-color: #cbd5e0;
+        }
+
+        .log-viewer {
+            background: #1a202c;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            min-height: 500px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .log-line {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log-line:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-timestamp {
+            color: #718096;
+            margin-right: 1rem;
+        }
+
+        .log-level {
+            font-weight: 600;
+            margin-right: 1rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .log-level.DEBUG {
+            color: #a0aec0;
+            background-color: rgba(160, 174, 192, 0.1);
+        }
+
+        .log-level.INFO {
+            color: #63b3ed;
+            background-color: rgba(99, 179, 237, 0.1);
+        }
+
+        .log-level.WARN {
+            color: #f6ad55;
+            background-color: rgba(246, 173, 85, 0.1);
+        }
+
+        .log-level.ERROR {
+            color: #fc8181;
+            background-color: rgba(252, 129, 129, 0.1);
+        }
+
+        .log-source {
+            color: #68d391;
+            margin-right: 1rem;
+        }
+
+        .log-message {
+            color: #e2e8f0;
+        }
+
+        .log-info {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-info-item {
+            text-align: center;
+        }
+
+        .log-info-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .log-info-label {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #718096;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <nav class="breadcrumb">
+        <div class="breadcrumb-inner">
+            <ul>
+                <li><a href="/page/">首页</a></li>
+                <li class="current">系统日志</li>
+            </ul>
+        </div>
+    </nav>
+
+    <nav class="nav-bar">
+        <div class="nav-bar-inner">
+            <div class="nav-links">
+                <a href="/page/">插件中心</a>
+                <a href="/system/info">系统信息</a>
+                <a href="/plugins/manage">插件管理</a>
+                <a href="/logs/system" class="active">系统日志</a>
+                <a href="/health">健康检查</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>系统日志</h1>
+            <p>查看和分析系统运行日志</p>
+        </div>
+
+        <div class="log-info">
+            <div class="log-info-item">
+                <div class="log-info-value">{{logLevel}}</div>
+                <div class="log-info-label">当前日志级别</div>
+            </div>
+            <div class="log-info-item">
+                <div class="log-info-value">{{logFile}}</div>
+                <div class="log-info-label">日志文件</div>
+            </div>
+            <div class="log-info-item">
+                <div class="log-info-value" id="logCount">0</div>
+                <div class="log-info-label">日志条数</div>
+            </div>
+            <div class="log-info-item">
+                <div class="log-info-value" id="updateTime">-</div>
+                <div class="log-info-label">最后更新</div>
+            </div>
+        </div>
+
+        <div class="log-controls">
+            <div class="control-row">
+                <div class="control-group">
+                    <label>日志级别:</label>
+                    <select id="levelFilter">
+                        <option value="">全部</option>
+                        <option value="DEBUG">DEBUG</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>时间范围:</label>
+                    <select id="timeRange">
+                        <option value="10">最近10分钟</option>
+                        <option value="30">最近30分钟</option>
+                        <option value="60" selected>最近1小时</option>
+                        <option value="1440">最近24小时</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>搜索:</label>
+                    <input type="text" id="searchInput" placeholder="搜索日志内容...">
+                </div>
+                <button class="btn btn-primary" onclick="loadLogs()">刷新</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">清除筛选</button>
+            </div>
+        </div>
+
+        <div class="log-viewer" id="logViewer">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>正在加载日志...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let logs = [];
+        let autoRefresh = null;
+
+        // 模拟日志数据
+        const sampleLogs = [
+            { timestamp: new Date().toISOString(), level: 'INFO', source: 'work.anyway.host.MainVerticle', message: 'HTTP server started on 0.0.0.0:8888' },
+            { timestamp: new Date().toISOString(), level: 'INFO', source: 'work.anyway.host.MainLauncher', message: 'Application started successfully' },
+            { timestamp: new Date().toISOString(), level: 'DEBUG', source: 'work.anyway.host.RouteMappingBeanPostProcessor', message: 'Registered 6 controllers with routes' },
+            { timestamp: new Date().toISOString(), level: 'WARN', source: 'work.anyway.packages.data.DataSourceManager', message: 'Connection pool is reaching capacity limit' },
+            { timestamp: new Date().toISOString(), level: 'ERROR', source: 'work.anyway.packages.system.plugin.SystemPlugin', message: 'Error rendering template: Template not found' },
+            { timestamp: new Date().toISOString(), level: 'INFO', source: 'work.anyway.packages.auth.plugin.AuthPlugin', message: 'User authentication successful for user: admin' },
+        ];
+
+        function loadLogs() {
+            const logViewer = document.getElementById('logViewer');
+            logViewer.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载日志...</p></div>';
+
+            // 模拟异步加载
+            setTimeout(() => {
+                // 生成一些随机日志
+                logs = [];
+                for (let i = 0; i < 50; i++) {
+                    const sample = sampleLogs[Math.floor(Math.random() * sampleLogs.length)];
+                    logs.push({
+                        ...sample,
+                        timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString()
+                    });
+                }
+
+                // 按时间排序
+                logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                filterAndDisplayLogs();
+                updateStats();
+            }, 1000);
+        }
+
+        function filterAndDisplayLogs() {
+            const levelFilter = document.getElementById('levelFilter').value;
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const timeRange = parseInt(document.getElementById('timeRange').value);
+            const cutoffTime = new Date(Date.now() - timeRange * 60000);
+
+            const filteredLogs = logs.filter(log => {
+                if (levelFilter && log.level !== levelFilter) return false;
+                if (searchInput && !log.message.toLowerCase().includes(searchInput)) return false;
+                if (new Date(log.timestamp) < cutoffTime) return false;
+                return true;
+            });
+
+            displayLogs(filteredLogs);
+        }
+
+        function displayLogs(logsToDisplay) {
+            const logViewer = document.getElementById('logViewer');
+            
+            if (logsToDisplay.length === 0) {
+                logViewer.innerHTML = '<div class="empty-state">没有找到匹配的日志</div>';
+                return;
+            }
+
+            logViewer.innerHTML = logsToDisplay.map(log => `
+                <div class="log-line">
+                    <span class="log-timestamp">${formatTimestamp(log.timestamp)}</span>
+                    <span class="log-level ${log.level}">${log.level}</span>
+                    <span class="log-source">${log.source}</span>
+                    <span class="log-message">${escapeHtml(log.message)}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('logCount').textContent = logsToDisplay.length;
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN');
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function updateStats() {
+            document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('zh-CN');
+        }
+
+        function clearFilters() {
+            document.getElementById('levelFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('timeRange').value = '60';
+            filterAndDisplayLogs();
+        }
+
+        // 事件监听
+        document.getElementById('levelFilter').addEventListener('change', filterAndDisplayLogs);
+        document.getElementById('searchInput').addEventListener('input', filterAndDisplayLogs);
+        document.getElementById('timeRange').addEventListener('change', filterAndDisplayLogs);
+
+        // 页面加载时加载日志
+        window.onload = function() {
+            loadLogs();
+            
+            // 自动刷新（每10秒）
+            autoRefresh = setInterval(() => {
+                loadLogs();
+            }, 10000);
+        };
+
+        // 页面卸载时清除定时器
+        window.onbeforeunload = function() {
+            if (autoRefresh) {
+                clearInterval(autoRefresh);
+            }
+        };
+    </script>
+</body>
+</html> 

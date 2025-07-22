@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - Auth Plugin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+        }
+
+        .settings-nav {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem;
+            height: fit-content;
+        }
+
+        .settings-nav h3 {
+            color: #2d3748;
+            margin-bottom: 1rem;
+            padding: 0 0.5rem;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: #4a5568;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 0.25rem;
+            transition: all 0.3s;
+        }
+
+        .nav-item:hover {
+            background-color: #f7fafc;
+            color: #2d3748;
+        }
+
+        .nav-item.active {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .settings-content {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+
+        .settings-section {
+            display: none;
+        }
+
+        .settings-section.active {
+            display: block;
+        }
+
+        .section-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .section-header h2 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-header p {
+            color: #718096;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #718096;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .switch-label {
+            flex: 1;
+        }
+
+        .switch-label h4 {
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+        }
+
+        .switch-label p {
+            color: #718096;
+            font-size: 0.875rem;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e0;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background-color: #cbd5e0;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-error {
+            background-color: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #f7fafc;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-active {
+            color: #48bb78;
+        }
+
+        .status-inactive {
+            color: #e53e3e;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🔐 {{title}}</h1>
+            <div class="nav-links">
+                <a href="/auth/">仪表板</a>
+                <a href="/auth/logs/page">登录日志</a>
+                <a href="/auth/admin/security/stats/page">安全统计</a>
+                <a href="/auth/admin/security/blacklist/page">IP黑名单</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="settings-grid">
+            <div class="settings-nav">
+                <h3>设置选项</h3>
+                <a href="#general" class="nav-item active" onclick="showSection('general')">基本设置</a>
+                <a href="#security" class="nav-item" onclick="showSection('security')">安全设置</a>
+                <a href="#jwt" class="nav-item" onclick="showSection('jwt')">JWT设置</a>
+                <a href="#notifications" class="nav-item" onclick="showSection('notifications')">通知设置</a>
+                <a href="#advanced" class="nav-item" onclick="showSection('advanced')">高级设置</a>
+            </div>
+
+            <div class="settings-content">
+                <div id="alert-container"></div>
+
+                <!-- 基本设置 -->
+                <div id="general" class="settings-section active">
+                    <div class="section-header">
+                        <h2>基本设置</h2>
+                        <p>配置认证系统的基本参数</p>
+                    </div>
+
+                    <form id="generalForm">
+                        <div class="form-group">
+                            <label>系统名称</label>
+                            <input type="text" name="systemName" value="Auth System" placeholder="输入系统名称">
+                            <small>显示在登录页面和邮件中的系统名称</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>会话超时时间（分钟）</label>
+                                <input type="number" name="sessionTimeout" value="30" min="5" max="1440">
+                                <small>用户无操作后自动登出的时间</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>记住我有效期（天）</label>
+                                <input type="number" name="rememberMeDays" value="7" min="1" max="90">
+                                <small>"记住我"功能的有效天数</small>
+                            </div>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>允许用户注册</h4>
+                                <p>开启后用户可以自行注册新账户</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="allowRegistration" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>邮箱验证</h4>
+                                <p>新用户注册后需要验证邮箱才能登录</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="requireEmailVerification">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm('generalForm')">重置</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 安全设置 -->
+                <div id="security" class="settings-section">
+                    <div class="section-header">
+                        <h2>安全设置</h2>
+                        <p>配置登录安全和密码策略</p>
+                    </div>
+
+                    <form id="securityForm">
+                        <h3 style="margin-bottom: 1rem; color: #4a5568;">登录限制</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>最大失败次数</label>
+                                <input type="number" name="maxFailedAttempts" value="5" min="3" max="10">
+                                <small>连续失败此次数后锁定账户</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>锁定时长（分钟）</label>
+                                <input type="number" name="lockDuration" value="30" min="5" max="1440">
+                                <small>账户被锁定的时间</small>
+                            </div>
+                        </div>
+
+                        <h3 style="margin: 2rem 0 1rem; color: #4a5568;">密码策略</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>最小长度</label>
+                                <input type="number" name="minPasswordLength" value="8" min="6" max="32">
+                            </div>
+
+                            <div class="form-group">
+                                <label>密码有效期（天）</label>
+                                <input type="number" name="passwordExpireDays" value="90" min="0" max="365">
+                                <small>0表示永不过期</small>
+                            </div>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>需要大写字母</h4>
+                                <p>密码必须包含至少一个大写字母</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="requireUppercase" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>需要小写字母</h4>
+                                <p>密码必须包含至少一个小写字母</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="requireLowercase" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>需要数字</h4>
+                                <p>密码必须包含至少一个数字</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="requireDigit" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>需要特殊字符</h4>
+                                <p>密码必须包含至少一个特殊字符</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="requireSpecial">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm('securityForm')">重置</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- JWT设置 -->
+                <div id="jwt" class="settings-section">
+                    <div class="section-header">
+                        <h2>JWT设置</h2>
+                        <p>配置JSON Web Token参数</p>
+                    </div>
+
+                    <form id="jwtForm">
+                        <div class="form-group">
+                            <label>签名算法</label>
+                            <select name="algorithm">
+                                <option value="HS256" selected>HS256 (HMAC with SHA-256)</option>
+                                <option value="HS384">HS384 (HMAC with SHA-384)</option>
+                                <option value="HS512">HS512 (HMAC with SHA-512)</option>
+                                <option value="RS256">RS256 (RSA with SHA-256)</option>
+                                <option value="RS384">RS384 (RSA with SHA-384)</option>
+                                <option value="RS512">RS512 (RSA with SHA-512)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Access Token有效期（分钟）</label>
+                                <input type="number" name="accessTokenExpiry" value="15" min="5" max="1440">
+                                <small>访问令牌的有效时间</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Refresh Token有效期（天）</label>
+                                <input type="number" name="refreshTokenExpiry" value="30" min="1" max="365">
+                                <small>刷新令牌的有效天数</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>签名密钥</label>
+                            <textarea name="secretKey" rows="3" placeholder="输入JWT签名密钥">your-256-bit-secret-key-here-keep-it-secure</textarea>
+                            <small>请使用足够复杂的密钥，建议至少32个字符</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Issuer (iss)</label>
+                            <input type="text" name="issuer" value="auth-system" placeholder="令牌签发者">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Audience (aud)</label>
+                            <input type="text" name="audience" value="api-users" placeholder="令牌接收者">
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm('jwtForm')">重置</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 通知设置 -->
+                <div id="notifications" class="settings-section">
+                    <div class="section-header">
+                        <h2>通知设置</h2>
+                        <p>配置系统通知和邮件提醒</p>
+                    </div>
+
+                    <form id="notificationsForm">
+                        <h3 style="margin-bottom: 1rem; color: #4a5568;">邮件服务器</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>SMTP服务器</label>
+                                <input type="text" name="smtpHost" placeholder="smtp.example.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label>端口</label>
+                                <input type="number" name="smtpPort" value="587" min="1" max="65535">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <input type="text" name="smtpUsername" placeholder="your-email@example.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label>密码</label>
+                                <input type="password" name="smtpPassword" placeholder="••••••••">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>发件人地址</label>
+                            <input type="email" name="fromEmail" placeholder="noreply@example.com">
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>使用TLS/SSL</h4>
+                                <p>启用安全连接</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="useTls" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <h3 style="margin: 2rem 0 1rem; color: #4a5568;">通知选项</h3>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>登录成功通知</h4>
+                                <p>用户登录成功时发送邮件通知</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="notifyLoginSuccess">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>异常登录警告</h4>
+                                <p>检测到异常登录行为时发送警告</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="notifyAbnormalLogin" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>密码修改通知</h4>
+                                <p>密码被修改时发送通知</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="notifyPasswordChange" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-secondary" onclick="testEmailConnection()">测试连接</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm('notificationsForm')">重置</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 高级设置 -->
+                <div id="advanced" class="settings-section">
+                    <div class="section-header">
+                        <h2>高级设置</h2>
+                        <p>系统高级配置和维护选项</p>
+                    </div>
+
+                    <form id="advancedForm">
+                        <h3 style="margin-bottom: 1rem; color: #4a5568;">数据保留</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>登录日志保留天数</label>
+                                <input type="number" name="logRetentionDays" value="90" min="7" max="365">
+                                <small>超过此天数的日志将被自动清理</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>失败尝试记录保留小时</label>
+                                <input type="number" name="attemptRetentionHours" value="24" min="1" max="168">
+                                <small>清理过期的失败登录记录</small>
+                            </div>
+                        </div>
+
+                        <h3 style="margin: 2rem 0 1rem; color: #4a5568;">API限流</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>登录接口限流（次/分钟）</label>
+                                <input type="number" name="loginRateLimit" value="10" min="1" max="100">
+                                <small>每个IP每分钟最多尝试登录次数</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>API请求限流（次/分钟）</label>
+                                <input type="number" name="apiRateLimit" value="60" min="10" max="1000">
+                                <small>每个用户每分钟最多API请求次数</small>
+                            </div>
+                        </div>
+
+                        <h3 style="margin: 2rem 0 1rem; color: #4a5568;">系统维护</h3>
+
+                        <div class="switch-group">
+                            <div class="switch-label">
+                                <h4>维护模式</h4>
+                                <p>启用后只有管理员可以登录</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="maintenanceMode">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>维护提示信息</label>
+                            <textarea name="maintenanceMessage" rows="3" placeholder="系统正在维护中，请稍后再试...">系统正在维护中，预计恢复时间：待定</textarea>
+                        </div>
+
+                        <h3 style="margin: 2rem 0 1rem; color: #4a5568;">数据库清理</h3>
+
+                        <div style="background-color: #fff5f5; border: 1px solid #feb2b2; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+                            <p style="color: #c53030; margin: 0;">⚠️ 警告：以下操作不可恢复，请谨慎操作！</p>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary" onclick="cleanupLogs()">清理过期日志</button>
+                            <button type="button" class="btn btn-secondary" onclick="cleanupAttempts()">清理失败记录</button>
+                            <button type="button" class="btn btn-secondary" onclick="cleanupSessions()">清理过期会话</button>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm('advancedForm')">重置</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 显示指定的设置部分
+        function showSection(sectionId) {
+            // 隐藏所有部分
+            document.querySelectorAll('.settings-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // 移除所有导航项的active类
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // 显示选中的部分
+            document.getElementById(sectionId).classList.add('active');
+            
+            // 设置导航项为active
+            document.querySelector(`a[href="#${sectionId}"]`).classList.add('active');
+        }
+
+        // 显示提示消息
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+
+        // 重置表单
+        function resetForm(formId) {
+            document.getElementById(formId).reset();
+            showAlert('表单已重置', 'success');
+        }
+
+        // 保存设置（示例）
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+                
+                // 处理复选框
+                form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    data[checkbox.name] = checkbox.checked;
+                });
+                
+                console.log('Saving settings:', data);
+                
+                // TODO: 发送到后端API
+                showAlert('设置已保存', 'success');
+            });
+        });
+
+        // 测试邮件连接
+        function testEmailConnection() {
+            showAlert('正在测试邮件服务器连接...', 'success');
+            // TODO: 调用API测试连接
+            setTimeout(() => {
+                showAlert('邮件服务器连接成功', 'success');
+            }, 2000);
+        }
+
+        // 清理函数
+        function cleanupLogs() {
+            if (confirm('确定要清理过期的登录日志吗？')) {
+                showAlert('正在清理过期日志...', 'success');
+                // TODO: 调用清理API
+            }
+        }
+
+        function cleanupAttempts() {
+            if (confirm('确定要清理失败的登录记录吗？')) {
+                showAlert('正在清理失败记录...', 'success');
+                // TODO: 调用清理API
+            }
+        }
+
+        function cleanupSessions() {
+            if (confirm('确定要清理过期的会话吗？')) {
+                showAlert('正在清理过期会话...', 'success');
+                // TODO: 调用清理API
+            }
+        }
+
+        // 处理URL hash
+        if (window.location.hash) {
+            const section = window.location.hash.substring(1);
+            showSection(section);
+        }
+    </script>
+</body>
+</html> 

@@ -1,6 +1,7 @@
 package work.anyway.interfaces.user;
 
 import lombok.*;
+import work.anyway.annotations.*;
 import work.anyway.interfaces.data.Entity;
 
 import java.util.Date;
@@ -18,20 +19,37 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table("users")
 public class User extends Entity {
 
+  @Column("name")
   private String name;
+
+  @Column("phone")
   private String phone;
+
+  @Column("department")
   private String department;
+
+  @Column("role")
   @Builder.Default
   private String role = "user";
+
+  @Column("status")
   @Builder.Default
   private String status = "active";
+
+  @Column("avatar_url")
   private String avatarUrl;
+
+  @Column("notes")
   private String notes;
+
+  @Column("last_login")
   private Date lastLogin;
 
   // 关联的账户列表（不持久化到数据库）
+  @Transient
   private transient List<UserAccount> accounts;
 
   /**

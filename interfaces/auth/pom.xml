@@ -10,4 +10,19 @@
 
   <artifactId>interfaces.auth</artifactId>
   <packaging>jar</packaging>
+
+  <dependencies>
+    <!-- Annotations dependency -->
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>annotations</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Data interfaces dependency -->
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>interfaces.data</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
 </project> 

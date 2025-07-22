@@ -1,6 +1,7 @@
 package work.anyway.interfaces.user;
 
 import lombok.*;
+import work.anyway.annotations.*;
 import work.anyway.interfaces.data.Entity;
 import java.util.Date;
 
@@ -16,17 +17,33 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table("user_accounts")
 public class UserAccount extends Entity {
 
+  @Column("user_id")
   private String userId;
+
+  @Column("account_type")
   private AccountType accountType;
+
+  @Column("identifier")
   private String identifier; // 邮箱地址、Google ID、微信 openid 等
+
+  @Column("credentials")
   private String credentials; // 密码hash、token等（JSON格式存储）
+
+  @Column("verified")
   @Builder.Default
   private Boolean verified = false;
+
+  @Column("primary_account")
   @Builder.Default
   private Boolean primaryAccount = false; // 是否为主账户
+
+  @Column("last_login")
   private Date lastLogin;
+
+  @Column("registration_ip")
   private String registrationIp;
 
   /**

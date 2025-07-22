@@ -123,4 +123,11 @@ public interface LoginSecurityService {
    * @return 清理的记录数
    */
   long cleanExpiredAttempts(int hoursToKeep);
+
+  /**
+   * 获取所有IP黑名单
+   * 
+   * @return IP黑名单列表
+   */
+  List<IpBlacklist> getIpBlacklist();
 }

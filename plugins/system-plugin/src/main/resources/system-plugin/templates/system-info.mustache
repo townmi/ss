@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - 系统插件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .breadcrumb {
+            background-color: #fff;
+            padding: 12px 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .breadcrumb-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .breadcrumb ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 0;
+            padding: 0;
+        }
+
+        .breadcrumb li {
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb li:not(:last-child)::after {
+            content: '/';
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .nav-bar {
+            background-color: #fff;
+            padding: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .nav-bar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            margin-left: auto;
+        }
+
+        .nav-links a {
+            color: #666;
+            text-decoration: none;
+            padding: 1rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #4a5568;
+            border-bottom-color: #667eea;
+        }
+
+        .nav-links a.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #718096;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-card h2 {
+            color: #2d3748;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #2d3748;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .memory-bar {
+            margin-top: 1rem;
+        }
+
+        .memory-bar-bg {
+            background-color: #e2e8f0;
+            border-radius: 9999px;
+            height: 8px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .memory-bar-fill {
+            background: linear-gradient(to right, #48bb78, #38a169);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .plugin-list {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .plugin-list h2 {
+            color: #2d3748;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .plugin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .plugin-table th {
+            background-color: #f7fafc;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .plugin-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .plugin-table tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .plugin-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .version-badge {
+            background-color: #e2e8f0;
+            color: #4a5568;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 2rem;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <nav class="breadcrumb">
+        <div class="breadcrumb-inner">
+            <ul>
+                <li><a href="/page/">首页</a></li>
+                <li class="current">系统信息</li>
+            </ul>
+        </div>
+    </nav>
+
+    <nav class="nav-bar">
+        <div class="nav-bar-inner">
+            <div class="nav-links">
+                <a href="/page/">插件中心</a>
+                <a href="/system/info" class="active">系统信息</a>
+                <a href="/plugins/manage">插件管理</a>
+                <a href="/logs/system">系统日志</a>
+                <a href="/health">健康检查</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>系统信息</h1>
+            <p>查看系统运行状态和环境信息</p>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <h2>Java 环境</h2>
+                <div class="info-item">
+                    <span class="info-label">Java 版本</span>
+                    <span class="info-value">{{javaVersion}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Java 供应商</span>
+                    <span class="info-value">{{javaVendor}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">可用处理器</span>
+                    <span class="info-value">{{processors}} 核</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h2>操作系统</h2>
+                <div class="info-item">
+                    <span class="info-label">系统名称</span>
+                    <span class="info-value">{{osName}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">系统版本</span>
+                    <span class="info-value">{{osVersion}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">系统架构</span>
+                    <span class="info-value">{{osArch}}</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h2>内存使用</h2>
+                <div class="info-item">
+                    <span class="info-label">已用内存</span>
+                    <span class="info-value">{{usedMemory}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">空闲内存</span>
+                    <span class="info-value">{{freeMemory}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">总内存</span>
+                    <span class="info-value">{{totalMemory}}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">最大内存</span>
+                    <span class="info-value">{{maxMemory}}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="plugin-list">
+            <h2>已加载插件 ({{pluginCount}})</h2>
+            <table class="plugin-table">
+                <thead>
+                    <tr>
+                        <th>插件名称</th>
+                        <th>版本</th>
+                        <th>描述</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#plugins}}
+                    <tr>
+                        <td>
+                            <span class="plugin-icon">{{icon}}</span>
+                            {{name}}
+                        </td>
+                        <td>
+                            <span class="version-badge">{{version}}</span>
+                        </td>
+                        <td>{{description}}</td>
+                    </tr>
+                    {{/plugins}}
+                </tbody>
+            </table>
+        </div>
+
+        <button class="refresh-btn" onclick="location.reload()">刷新信息</button>
+    </div>
+</body>
+</html> 

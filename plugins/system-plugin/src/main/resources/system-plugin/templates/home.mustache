@@ -49,6 +49,45 @@
             color: #999;
         }
 
+        .nav-bar {
+            background-color: #fff;
+            padding: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .nav-bar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            margin-left: auto;
+        }
+
+        .nav-links a {
+            color: #666;
+            text-decoration: none;
+            padding: 1rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #4a5568;
+            border-bottom-color: #667eea;
+        }
+
+        .nav-links a.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
         .breadcrumb a {
             color: #007bff;
             text-decoration: none;
@@ -294,6 +333,18 @@
             </ul>
         </div>
     </nav>
+
+    <nav class="nav-bar">
+        <div class="nav-bar-inner">
+            <div class="nav-links">
+                <a href="/page/" class="active">插件中心</a>
+                <a href="/system/info">系统信息</a>
+                <a href="/plugins/manage">插件管理</a>
+                <a href="/logs/system">系统日志</a>
+                <a href="/health">健康检查</a>
+            </div>
+        </div>
+    </nav>
     
     <div class="hero">
         <div class="container">
@@ -317,9 +368,9 @@
         <div class="quick-auth">
             <h2>快速认证</h2>
             <div class="auth-actions">
-                <a href="/page/auth/login" class="auth-btn login-btn">🔑 登录</a>
-                <a href="/page/auth/register" class="auth-btn register-btn">📝 注册</a>
-                <a href="/page/auth/" class="auth-btn manage-btn">⚙️ 权限管理</a>
+                <a href="/auth/login" class="auth-btn login-btn">🔑 登录</a>
+                <a href="/auth/register" class="auth-btn register-btn">📝 注册</a>
+                <a href="/auth/" class="auth-btn manage-btn">⚙️ 权限管理</a>
             </div>
         </div>
 

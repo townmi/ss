@@ -3,11 +3,14 @@ package work.anyway.packages.user;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import work.anyway.interfaces.data.DataService;
+import work.anyway.interfaces.data.Repository;
+import work.anyway.interfaces.data.TypedDataService;
+import work.anyway.interfaces.data.QueryCriteria;
 import work.anyway.interfaces.user.User;
 import work.anyway.interfaces.user.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import work.anyway.interfaces.user.AccountService;
 import work.anyway.interfaces.user.AccountType;
 import work.anyway.interfaces.user.UserAccount;
@@ -16,34 +19,33 @@ import java.util.stream.Collectors;
 
 /**
  * 用户服务实现
- * 使用 DataService 进行数据存储
+ * 使用类型安全的 Repository 进行数据存储
  */
 @Service
 public class UserServiceImpl implements UserService {
 
   private static final Logger LOG = LoggerFactory.getLogger(UserServiceImpl.class);
-  private static final String COLLECTION_NAME = "users";
 
-  @Autowired
-  private DataService dataService;
+  private final Repository<User> userRepository;
 
   @Autowired
   private AccountService accountService;
 
+  @Autowired
+  public UserServiceImpl(@Qualifier("enhancedDataService") TypedDataService dataService) {
+    this.userRepository = dataService.getRepository("users", User.class);
+  }
+
   @Override
   public List<User> getAllUsers() {
     LOG.debug("Getting all users");
-    List<Map<String, Object>> userMaps = dataService.findAll(COLLECTION_NAME);
-    return userMaps.stream()
-        .map(this::mapToUser)
-        .collect(Collectors.toList());
+    return userRepository.findAll();
   }
 
   @Override
   public Optional<User> getUserById(String userId) {
     LOG.debug("Getting user by id: {}", userId);
-    Optional<Map<String, Object>> userMap = dataService.findById(COLLECTION_NAME, userId);
-    return userMap.map(this::mapToUser);
+    return userRepository.findById(userId);
   }
 
   @Override
@@ -55,30 +57,8 @@ public class UserServiceImpl implements UserService {
       throw new IllegalArgumentException("Name is required");
     }
 
-    // 生成唯一的用户ID
-    if (user.getId() == null || user.getId().trim().isEmpty()) {
-      String userId = UUID.randomUUID().toString();
-      user.setId(userId);
-      LOG.debug("Generated new user ID: {}", userId);
-    }
-
-    // 设置默认值
-    if (user.getRole() == null) {
-      user.setRole("user");
-    }
-    if (user.getStatus() == null) {
-      user.setStatus("active");
-    }
-    if (user.getCreatedAt() == null) {
-      user.setCreatedAt(new Date());
-    }
-    user.setUpdatedAt(new Date());
-
-    // 转换为Map并保存
-    Map<String, Object> userMap = userToMap(user);
-    Map<String, Object> savedUserMap = dataService.save(COLLECTION_NAME, userMap);
-
-    User savedUser = mapToUser(savedUserMap);
+    // Repository 会自动处理 ID 和时间戳
+    User savedUser = userRepository.save(user);
     LOG.info("User created with id: {}", savedUser.getId());
     return savedUser;
   }
@@ -94,12 +74,11 @@ public class UserServiceImpl implements UserService {
       return false;
     }
 
-    // 更新时间戳
-    user.setUpdatedAt(new Date());
+    // 设置ID以确保更新正确的记录
+    user.setId(userId);
 
-    // 转换为Map并更新
-    Map<String, Object> userMap = userToMap(user);
-    boolean updated = dataService.update(COLLECTION_NAME, userId, userMap);
+    // Repository 会自动处理更新时间戳
+    boolean updated = userRepository.update(user);
 
     if (updated) {
       LOG.info("User updated: {}", userId);
@@ -111,7 +90,7 @@ public class UserServiceImpl implements UserService {
   public boolean deleteUser(String userId) {
     LOG.debug("Deleting user: {}", userId);
 
-    boolean deleted = dataService.delete(COLLECTION_NAME, userId);
+    boolean deleted = userRepository.delete(userId);
     if (deleted) {
       LOG.info("User deleted: {}", userId);
     } else {
@@ -137,11 +116,9 @@ public class UserServiceImpl implements UserService {
   public Optional<User> findUserByPhone(String phone) {
     LOG.debug("Finding user by phone: {}", phone);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("phone", phone);
-
-    List<Map<String, Object>> users = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return users.isEmpty() ? Optional.empty() : Optional.of(mapToUser(users.get(0)));
+    List<User> users = userRepository.findBy(
+        QueryCriteria.<User>create().eq("phone", phone));
+    return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
   }
 
   @Override
@@ -159,46 +136,28 @@ public class UserServiceImpl implements UserService {
   @Override
   public long getUserCount() {
     LOG.debug("Getting user count");
-    return dataService.count(COLLECTION_NAME);
+    return userRepository.count();
   }
 
   @Override
   public List<User> getUsersByRole(String role) {
     LOG.debug("Getting users by role: {}", role);
-
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("role", role);
-
-    List<Map<String, Object>> userMaps = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return userMaps.stream()
-        .map(this::mapToUser)
-        .collect(Collectors.toList());
+    return userRepository.findBy(
+        QueryCriteria.<User>create().eq("role", role));
   }
 
   @Override
   public List<User> getUsersByStatus(String status) {
     LOG.debug("Getting users by status: {}", status);
-
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("status", status);
-
-    List<Map<String, Object>> userMaps = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return userMaps.stream()
-        .map(this::mapToUser)
-        .collect(Collectors.toList());
+    return userRepository.findBy(
+        QueryCriteria.<User>create().eq("status", status));
   }
 
   @Override
   public List<User> getUsersByDepartment(String department) {
     LOG.debug("Getting users by department: {}", department);
-
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("department", department);
-
-    List<Map<String, Object>> userMaps = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return userMaps.stream()
-        .map(this::mapToUser)
-        .collect(Collectors.toList());
+    return userRepository.findBy(
+        QueryCriteria.<User>create().eq("department", department));
   }
 
   @Override
@@ -307,88 +266,6 @@ public class UserServiceImpl implements UserService {
   }
 
   // 辅助方法
-
-  /**
-   * 将Map转换为User实体
-   */
-  private User mapToUser(Map<String, Object> map) {
-    User user = new User();
-    user.setId((String) map.get("id"));
-    user.setName((String) map.get("name"));
-    user.setPhone((String) map.get("phone"));
-    user.setDepartment((String) map.get("department"));
-    user.setRole((String) map.get("role"));
-    user.setStatus((String) map.get("status"));
-    user.setAvatarUrl((String) map.get("avatarUrl"));
-    user.setNotes((String) map.get("notes"));
-
-    // 处理日期字段
-    Object createdAt = map.get("createdAt");
-    if (createdAt instanceof Long) {
-      user.setCreatedAt(new Date((Long) createdAt));
-    } else if (createdAt instanceof Date) {
-      user.setCreatedAt((Date) createdAt);
-    }
-
-    Object updatedAt = map.get("updatedAt");
-    if (updatedAt instanceof Long) {
-      user.setUpdatedAt(new Date((Long) updatedAt));
-    } else if (updatedAt instanceof Date) {
-      user.setUpdatedAt((Date) updatedAt);
-    }
-
-    Object lastLogin = map.get("lastLogin");
-    if (lastLogin instanceof Long) {
-      user.setLastLogin(new Date((Long) lastLogin));
-    } else if (lastLogin instanceof Date) {
-      user.setLastLogin((Date) lastLogin);
-    }
-
-    return user;
-  }
-
-  /**
-   * 将User实体转换为Map
-   */
-  private Map<String, Object> userToMap(User user) {
-    Map<String, Object> map = new HashMap<>();
-
-    if (user.getId() != null) {
-      map.put("id", user.getId());
-    }
-    if (user.getName() != null) {
-      map.put("name", user.getName());
-    }
-    if (user.getPhone() != null) {
-      map.put("phone", user.getPhone());
-    }
-    if (user.getDepartment() != null) {
-      map.put("department", user.getDepartment());
-    }
-    if (user.getRole() != null) {
-      map.put("role", user.getRole());
-    }
-    if (user.getStatus() != null) {
-      map.put("status", user.getStatus());
-    }
-    if (user.getAvatarUrl() != null) {
-      map.put("avatarUrl", user.getAvatarUrl());
-    }
-    if (user.getNotes() != null) {
-      map.put("notes", user.getNotes());
-    }
-    if (user.getCreatedAt() != null) {
-      map.put("createdAt", user.getCreatedAt().getTime());
-    }
-    if (user.getUpdatedAt() != null) {
-      map.put("updatedAt", user.getUpdatedAt().getTime());
-    }
-    if (user.getLastLogin() != null) {
-      map.put("lastLogin", user.getLastLogin().getTime());
-    }
-
-    return map;
-  }
 
   /**
    * 检查用户是否匹配关键词

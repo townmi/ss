@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - Auth Plugin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .filters-header {
+            margin-bottom: 1rem;
+        }
+
+        .filters-header h2 {
+            color: #2d3748;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+
+        .btn-secondary {
+            background-color: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4a5568;
+        }
+
+        .logs-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #f7fafc;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .status-failed {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .risk-score {
+            font-weight: 600;
+        }
+
+        .risk-low {
+            color: #48bb78;
+        }
+
+        .risk-medium {
+            color: #ed8936;
+        }
+
+        .risk-high {
+            color: #f56565;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #718096;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            opacity: 0.3;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background-color: #f7fafc;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            color: #4a5568;
+        }
+
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🔐 {{title}}</h1>
+            <div class="nav-links">
+                <a href="/auth/">仪表板</a>
+                <a href="/auth/admin/security/stats/page">安全统计</a>
+                <a href="/auth/admin/security/blacklist/page">IP黑名单</a>
+                <a href="/auth/settings/page">设置</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-summary" id="statsSummary">
+            <div class="stat-card">
+                <h3>今日登录</h3>
+                <div class="value" id="todayLogins">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>成功率</h3>
+                <div class="value" id="successRate">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>高风险登录</h3>
+                <div class="value" id="highRiskCount">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>活跃用户</h3>
+                <div class="value" id="activeUsers">-</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filters-header">
+                <h2>筛选条件</h2>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>用户ID:</label>
+                    <input type="text" id="userIdFilter" placeholder="输入用户ID">
+                </div>
+                <div class="filter-group">
+                    <label>IP地址:</label>
+                    <input type="text" id="ipFilter" placeholder="输入IP地址">
+                </div>
+                <div class="filter-group">
+                    <label>状态:</label>
+                    <select id="statusFilter">
+                        <option value="">全部</option>
+                        <option value="SUCCESS">成功</option>
+                        <option value="FAILED">失败</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>时间范围:</label>
+                    <select id="timeRangeFilter">
+                        <option value="1">最近1小时</option>
+                        <option value="24" selected>最近24小时</option>
+                        <option value="168">最近7天</option>
+                        <option value="720">最近30天</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-row">
+                <button class="btn btn-primary" onclick="applyFilters()">应用筛选</button>
+                <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
+            </div>
+        </div>
+
+        <div class="logs-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>用户</th>
+                        <th>登录方式</th>
+                        <th>IP地址</th>
+                        <th>位置</th>
+                        <th>设备</th>
+                        <th>风险评分</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="logsBody">
+                    <tr>
+                        <td colspan="8" class="loading">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination">
+            <button onclick="previousPage()" id="prevBtn" disabled>上一页</button>
+            <span class="page-info">第 <span id="currentPage">1</span> 页，共 <span id="totalPages">1</span> 页</span>
+            <button onclick="nextPage()" id="nextBtn">下一页</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let pageSize = 20;
+        let totalPages = 1;
+        let filters = {};
+
+        // 页面加载时获取日志
+        window.onload = function() {
+            loadStats();
+            loadLogs();
+        };
+
+        function loadStats() {
+            const hours = parseInt(document.getElementById('timeRangeFilter').value);
+            
+            fetch(`/auth/admin/security/stats?hours=${hours}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stats = data.data.loginStats;
+                        document.getElementById('todayLogins').textContent = 
+                            (stats.totalAttempts || 0).toLocaleString();
+                        
+                        const successRate = stats.totalAttempts > 0 
+                            ? ((stats.successfulLogins / stats.totalAttempts) * 100).toFixed(1) 
+                            : 0;
+                        document.getElementById('successRate').textContent = successRate + '%';
+                        
+                        document.getElementById('highRiskCount').textContent = 
+                            (data.data.highRiskLogins?.length || 0).toLocaleString();
+                        
+                        document.getElementById('activeUsers').textContent = 
+                            (stats.uniqueUsers || 0).toLocaleString();
+                    }
+                })
+                .catch(error => console.error('Error loading stats:', error));
+        }
+
+        function loadLogs() {
+            const params = new URLSearchParams({
+                page: currentPage,
+                pageSize: pageSize,
+                hours: filters.hours || document.getElementById('timeRangeFilter').value,
+                ...filters
+            });
+
+            fetch(`/auth/logs?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderLogs(data.data.logs);
+                        updatePagination(data.data.pagination);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading logs:', error);
+                    document.getElementById('logsBody').innerHTML = 
+                        '<tr><td colspan="8" class="empty-state">加载失败，请重试</td></tr>';
+                });
+        }
+
+        function renderLogs(logs) {
+            const tbody = document.getElementById('logsBody');
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p>暂无登录日志</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => {
+                const riskClass = log.riskScore >= 70 ? 'risk-high' : 
+                                 log.riskScore >= 40 ? 'risk-medium' : 'risk-low';
+                const statusClass = log.success ? 'status-success' : 'status-failed';
+                const statusText = log.success ? '成功' : '失败';
+                
+                return `
+                    <tr>
+                        <td>${formatDate(log.loginTime)}</td>
+                        <td>${log.userId || '-'}</td>
+                        <td>${log.loginType || '-'}</td>
+                        <td><strong>${log.clientIp}</strong></td>
+                        <td>${log.location || '-'}</td>
+                        <td>${formatDevice(log.userAgent)}</td>
+                        <td><span class="risk-score ${riskClass}">${log.riskScore}</span></td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updatePagination(pagination) {
+            currentPage = pagination.currentPage;
+            totalPages = pagination.totalPages;
+            
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+            
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function applyFilters() {
+            filters = {
+                userId: document.getElementById('userIdFilter').value,
+                clientIp: document.getElementById('ipFilter').value,
+                status: document.getElementById('statusFilter').value,
+                hours: document.getElementById('timeRangeFilter').value
+            };
+            
+            // 移除空值
+            Object.keys(filters).forEach(key => {
+                if (!filters[key]) delete filters[key];
+            });
+            
+            currentPage = 1;
+            loadStats();
+            loadLogs();
+        }
+
+        function resetFilters() {
+            document.getElementById('userIdFilter').value = '';
+            document.getElementById('ipFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('timeRangeFilter').value = '24';
+            filters = {};
+            currentPage = 1;
+            loadStats();
+            loadLogs();
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadLogs();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadLogs();
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN');
+        }
+
+        function formatDevice(userAgent) {
+            if (!userAgent) return '-';
+            
+            // 简单的设备识别
+            if (userAgent.includes('Mobile')) return '移动设备';
+            if (userAgent.includes('Tablet')) return '平板电脑';
+            if (userAgent.includes('Windows')) return 'Windows PC';
+            if (userAgent.includes('Mac')) return 'Mac';
+            if (userAgent.includes('Linux')) return 'Linux';
+            
+            return '未知设备';
+        }
+    </script>
+</body>
+</html> 

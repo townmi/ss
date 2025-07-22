@@ -120,6 +120,104 @@ public class SystemPlugin {
   }
 
   /**
+   * 系统信息页面
+   */
+  @GetMapping("/system/info")
+  public void handleSystemInfo(RoutingContext ctx) {
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "系统信息");
+
+      // 系统属性
+      data.put("javaVersion", System.getProperty("java.version"));
+      data.put("javaVendor", System.getProperty("java.vendor"));
+      data.put("osName", System.getProperty("os.name"));
+      data.put("osVersion", System.getProperty("os.version"));
+      data.put("osArch", System.getProperty("os.arch"));
+
+      // 运行时信息
+      Runtime runtime = Runtime.getRuntime();
+      data.put("totalMemory", formatBytes(runtime.totalMemory()));
+      data.put("freeMemory", formatBytes(runtime.freeMemory()));
+      data.put("usedMemory", formatBytes(runtime.totalMemory() - runtime.freeMemory()));
+      data.put("maxMemory", formatBytes(runtime.maxMemory()));
+      data.put("processors", runtime.availableProcessors());
+
+      // 插件信息
+      List<PluginInfo> plugins = pluginRegistry.getAllPlugins();
+      data.put("pluginCount", plugins.size());
+      data.put("plugins", plugins);
+
+      String html = renderTemplate("system-info.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Error rendering system info page", e);
+      ctx.response().setStatusCode(500).end("Internal Server Error");
+    }
+  }
+
+  /**
+   * 插件管理页面
+   */
+  @GetMapping("/plugins/manage")
+  public void handlePluginManagement(RoutingContext ctx) {
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "插件管理");
+
+      List<PluginInfo> plugins = pluginRegistry.getAllPlugins();
+      List<Map<String, Object>> pluginList = new ArrayList<>();
+
+      for (PluginInfo plugin : plugins) {
+        Map<String, Object> pluginData = new HashMap<>();
+        pluginData.put("name", plugin.getName());
+        pluginData.put("version", plugin.getVersion());
+        pluginData.put("description", plugin.getDescription());
+        pluginData.put("icon", plugin.getIcon());
+        pluginData.put("mainPagePath", plugin.getMainPagePath());
+        pluginData.put("hasMainPage", plugin.getMainPagePath() != null && !plugin.getMainPagePath().isEmpty());
+        pluginList.add(pluginData);
+      }
+
+      data.put("plugins", pluginList);
+      data.put("pluginCount", plugins.size());
+
+      String html = renderTemplate("plugin-management.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Error rendering plugin management page", e);
+      ctx.response().setStatusCode(500).end("Internal Server Error");
+    }
+  }
+
+  /**
+   * 系统日志页面
+   */
+  @GetMapping("/logs/system")
+  public void handleSystemLogs(RoutingContext ctx) {
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "系统日志");
+
+      // TODO: 实际的日志数据应该从日志服务获取
+      data.put("logLevel", "INFO");
+      data.put("logFile", "logs/application.log");
+
+      String html = renderTemplate("system-logs.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Error rendering system logs page", e);
+      ctx.response().setStatusCode(500).end("Internal Server Error");
+    }
+  }
+
+  /**
    * 处理健康检查请求
    */
   @GetMapping("/health")
@@ -180,6 +278,17 @@ public class SystemPlugin {
           .putHeader("content-type", "application/json")
           .end("{\"error\":\"" + e.getMessage() + "\"}");
     }
+  }
+
+  /**
+   * 格式化字节数为可读格式
+   */
+  private String formatBytes(long bytes) {
+    if (bytes < 1024)
+      return bytes + " B";
+    int exp = (int) (Math.log(bytes) / Math.log(1024));
+    String pre = "KMGTPE".charAt(exp - 1) + "";
+    return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
   }
 
   /**

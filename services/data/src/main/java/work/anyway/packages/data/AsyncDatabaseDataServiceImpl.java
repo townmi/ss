@@ -29,13 +29,12 @@ import java.util.Date;
  * @since 1.0.0
  */
 @Service("asyncDatabaseDataService")
-@Primary
 public class AsyncDatabaseDataServiceImpl implements TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDatabaseDataServiceImpl.class);
 
-  private final DataSourceManager dataSourceManager;
-  private final Vertx vertx;
+  protected final DataSourceManager dataSourceManager;
+  protected final Vertx vertx;
 
   // 缓存，用于存储临时数据
   private final Map<String, Map<String, Map<String, Object>>> memoryCache = new ConcurrentHashMap<>();

@@ -3,9 +3,12 @@ package work.anyway.packages.auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import work.anyway.interfaces.auth.*;
-import work.anyway.interfaces.data.DataService;
+import work.anyway.interfaces.data.Repository;
+import work.anyway.interfaces.data.TypedDataService;
+import work.anyway.interfaces.data.QueryCriteria;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -24,17 +27,17 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
 
   private static final Logger LOG = LoggerFactory.getLogger(LoginSecurityServiceImpl.class);
 
-  // 数据库表名
-  private static final String LOGIN_ATTEMPTS_COLLECTION = "login_attempts";
-  private static final String IP_BLACKLIST_COLLECTION = "ip_blacklist";
-
-  // 配置参数现在从LoginSecurityConfig获取
-
-  @Autowired
-  private DataService dataService;
+  private final Repository<LoginAttempt> loginAttemptRepository;
+  private final Repository<IpBlacklist> ipBlacklistRepository;
 
   @Autowired
   private LoginSecurityConfig config;
+
+  @Autowired
+  public LoginSecurityServiceImpl(@Qualifier("enhancedDataService") TypedDataService dataService) {
+    this.loginAttemptRepository = dataService.getRepository("login_attempts", LoginAttempt.class);
+    this.ipBlacklistRepository = dataService.getRepository("ip_blacklist", IpBlacklist.class);
+  }
 
   @Override
   public LoginAttemptResult checkLoginAttempt(String identifier, String clientIp) {
@@ -114,18 +117,17 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
     LOG.debug("Clearing failed attempts for identifier: {}, IP: {}", identifier, clientIp);
 
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
+      QueryCriteria<LoginAttempt> criteria = QueryCriteria.<LoginAttempt>create()
+          .eq("identifier", identifier);
       if (clientIp != null) {
-        criteria.put("clientIp", clientIp);
+        criteria.eq("clientIp", clientIp);
       }
 
-      List<Map<String, Object>> attempts = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> attempts = loginAttemptRepository.findBy(criteria);
       int deletedCount = 0;
 
-      for (Map<String, Object> attemptMap : attempts) {
-        String attemptId = (String) attemptMap.get("id");
-        if (dataService.delete(LOGIN_ATTEMPTS_COLLECTION, attemptId)) {
+      for (LoginAttempt attempt : attempts) {
+        if (loginAttemptRepository.delete(attempt.getId())) {
           deletedCount++;
         }
       }
@@ -142,13 +144,13 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   @Override
   public Optional<LoginAttempt> getLoginAttempt(String identifier, String clientIp) {
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
-      criteria.put("clientIp", clientIp);
+      List<LoginAttempt> results = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("identifier", identifier)
+              .eq("clientIp", clientIp));
 
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
       if (!results.isEmpty()) {
-        return Optional.of(mapToLoginAttempt(results.get(0)));
+        return Optional.of(results.get(0));
       }
       return Optional.empty();
 
@@ -178,14 +180,12 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
       attempt.setLockLevel("account");
       attempt.setLockReason(reason);
       attempt.setLockedUntil(LocalDateTime.now().plusMinutes(lockDurationMinutes));
-      attempt.setUpdatedAt(new Date());
 
-      Map<String, Object> attemptMap = loginAttemptToMap(attempt);
       if (existingAttempt.isPresent()) {
-        return dataService.update(LOGIN_ATTEMPTS_COLLECTION, attempt.getId(), attemptMap);
+        return loginAttemptRepository.update(attempt);
       } else {
-        attemptMap = dataService.save(LOGIN_ATTEMPTS_COLLECTION, attemptMap);
-        return attemptMap != null;
+        LoginAttempt saved = loginAttemptRepository.save(attempt);
+        return saved != null;
       }
 
     } catch (Exception e) {
@@ -199,18 +199,15 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
     LOG.info("Manually unlocking account: {} by admin: {}", identifier, adminUserId);
 
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
-
-      List<Map<String, Object>> attempts = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> attempts = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("identifier", identifier));
       int unlockedCount = 0;
 
-      for (Map<String, Object> attemptMap : attempts) {
-        LoginAttempt attempt = mapToLoginAttempt(attemptMap);
+      for (LoginAttempt attempt : attempts) {
         attempt.reset();
-        attempt.setUpdatedAt(new Date());
 
-        if (dataService.update(LOGIN_ATTEMPTS_COLLECTION, attempt.getId(), loginAttemptToMap(attempt))) {
+        if (loginAttemptRepository.update(attempt)) {
           unlockedCount++;
         }
       }
@@ -255,12 +252,10 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   @Override
   public List<LoginAttempt> getLockedAccounts() {
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("lockLevel", "account");
-
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> results = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("lockLevel", "account"));
       return results.stream()
-          .map(this::mapToLoginAttempt)
           .filter(LoginAttempt::isLocked)
           .collect(Collectors.toList());
 
@@ -273,21 +268,20 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   @Override
   public boolean isIpBlacklisted(String clientIp) {
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("ipAddress", clientIp);
+      List<IpBlacklist> results = ipBlacklistRepository.findBy(
+          QueryCriteria.<IpBlacklist>create()
+              .eq("ipAddress", clientIp));
 
-      List<Map<String, Object>> results = dataService.findByCriteria(IP_BLACKLIST_COLLECTION, criteria);
       if (results.isEmpty()) {
         return false;
       }
 
       // 检查是否过期
-      Map<String, Object> blacklistEntry = results.get(0);
-      Date expiresAt = (Date) blacklistEntry.get("expiresAt");
-      if (expiresAt != null && expiresAt.before(new Date())) {
+      IpBlacklist blacklistEntry = results.get(0);
+      if (blacklistEntry.isExpired()) {
         // 已过期，删除记录
-        String entryId = (String) blacklistEntry.get("id");
-        dataService.delete(IP_BLACKLIST_COLLECTION, entryId);
+        ipBlacklistRepository.delete(blacklistEntry.getId());
+        LOG.info("Removed expired IP blacklist entry for: {}", clientIp);
         return false;
       }
 
@@ -305,22 +299,19 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
         clientIp, reason, durationMinutes);
 
     try {
-      Map<String, Object> blacklistEntry = new HashMap<>();
-      blacklistEntry.put("id", UUID.randomUUID().toString());
-      blacklistEntry.put("ipAddress", clientIp);
-      blacklistEntry.put("blacklistType", "manual");
-      blacklistEntry.put("reason", reason);
-      blacklistEntry.put("createdBy", adminUserId);
+      IpBlacklist blacklistEntry = IpBlacklist.builder()
+          .ipAddress(clientIp)
+          .reason(reason)
+          .blockedBy(adminUserId)
+          .isPermanent(durationMinutes <= 0)
+          .build();
 
       if (durationMinutes > 0) {
         Date expiresAt = new Date(System.currentTimeMillis() + durationMinutes * 60 * 1000L);
-        blacklistEntry.put("expiresAt", expiresAt);
+        blacklistEntry.setExpiresAt(expiresAt);
       }
 
-      blacklistEntry.put("createdAt", new Date());
-      blacklistEntry.put("updatedAt", new Date());
-
-      Map<String, Object> saved = dataService.save(IP_BLACKLIST_COLLECTION, blacklistEntry);
+      IpBlacklist saved = ipBlacklistRepository.save(blacklistEntry);
       return saved != null;
 
     } catch (Exception e) {
@@ -334,15 +325,13 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
     LOG.info("Removing IP from blacklist: {} by admin: {}", clientIp, adminUserId);
 
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("ipAddress", clientIp);
-
-      List<Map<String, Object>> results = dataService.findByCriteria(IP_BLACKLIST_COLLECTION, criteria);
+      List<IpBlacklist> results = ipBlacklistRepository.findBy(
+          QueryCriteria.<IpBlacklist>create()
+              .eq("ipAddress", clientIp));
       int removedCount = 0;
 
-      for (Map<String, Object> entry : results) {
-        String entryId = (String) entry.get("id");
-        if (dataService.delete(IP_BLACKLIST_COLLECTION, entryId)) {
+      for (IpBlacklist entry : results) {
+        if (ipBlacklistRepository.delete(entry.getId())) {
           removedCount++;
         }
       }
@@ -357,6 +346,12 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   }
 
   @Override
+  public List<IpBlacklist> getIpBlacklist() {
+    LOG.debug("Getting all IP blacklist entries");
+    return ipBlacklistRepository.findAll();
+  }
+
+  @Override
   public long cleanExpiredAttempts(int hoursToKeep) {
     LOG.info("Cleaning expired login attempts, keeping {} hours", hoursToKeep);
 
@@ -364,23 +359,23 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
       Date cutoffTime = new Date(System.currentTimeMillis() - hoursToKeep * 3600 * 1000L);
 
       // 查找过期记录
-      List<Map<String, Object>> allAttempts = dataService.findAll(LOGIN_ATTEMPTS_COLLECTION);
+      List<LoginAttempt> allAttempts = loginAttemptRepository.findAll();
       List<String> expiredIds = new ArrayList<>();
 
-      for (Map<String, Object> attemptMap : allAttempts) {
-        Date lastAttemptAt = (Date) attemptMap.get("lastAttemptAt");
-        Date lockedUntil = (Date) attemptMap.get("lockedUntil");
-
+      for (LoginAttempt attempt : allAttempts) {
         // 如果最后尝试时间超过保留期限，且没有锁定或锁定已过期
-        if (lastAttemptAt != null && lastAttemptAt.before(cutoffTime)) {
-          if (lockedUntil == null || lockedUntil.before(new Date())) {
-            expiredIds.add((String) attemptMap.get("id"));
+        if (attempt.getLastAttemptAt() != null) {
+          // 将 LocalDateTime 转换为 Date 进行比较
+          Date lastAttemptDate = Date.from(attempt.getLastAttemptAt()
+              .atZone(ZoneId.systemDefault()).toInstant());
+          if (lastAttemptDate.before(cutoffTime) && !attempt.isLocked()) {
+            expiredIds.add(attempt.getId());
           }
         }
       }
 
       // 批量删除过期记录
-      int deletedCount = dataService.batchDelete(LOGIN_ATTEMPTS_COLLECTION, expiredIds);
+      int deletedCount = loginAttemptRepository.batchDelete(expiredIds);
       LOG.info("Cleaned {} expired login attempts", deletedCount);
       return deletedCount;
 
@@ -398,30 +393,24 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   private void updateOrCreateUserAttempt(String identifier, String identifierType,
       String clientIp, String lockLevel) {
     try {
-      // 先查找现有记录（使用更安全的查询方式）
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
-      criteria.put("clientIp", clientIp);
-
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      // 先查找现有记录
+      List<LoginAttempt> results = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("identifier", identifier)
+              .eq("clientIp", clientIp));
 
       LoginAttempt attempt;
       boolean isUpdate = false;
 
       if (!results.isEmpty()) {
         // 找到现有记录，更新它
-        Map<String, Object> existingData = results.get(0);
-        attempt = mapToLoginAttempt(existingData);
+        attempt = results.get(0);
         attempt.incrementAttempts();
         isUpdate = true;
       } else {
         // 创建新记录
         attempt = new LoginAttempt(identifier, identifierType, clientIp);
-        attempt.setId(UUID.randomUUID().toString());
-        attempt.setCreatedAt(new Date());
       }
-
-      attempt.setUpdatedAt(new Date());
 
       // 检查是否需要锁定
       int maxAttempts = "account".equals(lockLevel) ? config.getMaxAttemptsPerAccount() : config.getMaxAttemptsPerIp();
@@ -431,35 +420,12 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
         attempt.setLockReason("Too many failed login attempts");
       }
 
-      Map<String, Object> attemptMap = loginAttemptToMap(attempt);
-
       if (isUpdate) {
-        dataService.update(LOGIN_ATTEMPTS_COLLECTION, attempt.getId(), attemptMap);
+        loginAttemptRepository.update(attempt);
         LOG.debug("Updated login attempt record for identifier: {}, IP: {}", identifier, clientIp);
       } else {
-        try {
-          dataService.save(LOGIN_ATTEMPTS_COLLECTION, attemptMap);
-          LOG.debug("Created new login attempt record for identifier: {}, IP: {}", identifier, clientIp);
-        } catch (Exception saveEx) {
-          // 如果保存失败（可能是并发导致的唯一约束冲突），尝试更新
-          if (saveEx.getMessage() != null && saveEx.getMessage().contains("Duplicate entry")) {
-            LOG.warn("Duplicate entry detected, attempting to update existing record for identifier: {}, IP: {}",
-                identifier, clientIp);
-
-            // 重新查找记录并更新
-            List<Map<String, Object>> retryResults = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
-            if (!retryResults.isEmpty()) {
-              Map<String, Object> existingData = retryResults.get(0);
-              String existingId = (String) existingData.get("id");
-              dataService.update(LOGIN_ATTEMPTS_COLLECTION, existingId, attemptMap);
-              LOG.debug("Successfully updated existing record after duplicate entry error");
-            } else {
-              throw saveEx; // 重新抛出原始异常
-            }
-          } else {
-            throw saveEx; // 重新抛出原始异常
-          }
-        }
+        loginAttemptRepository.save(attempt);
+        LOG.debug("Created new login attempt record for identifier: {}, IP: {}", identifier, clientIp);
       }
 
     } catch (Exception e) {
@@ -499,13 +465,12 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   private int assessLocationRisk(String identifier, String clientIp) {
     // 简化实现：检查是否为新IP
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
-
-      List<Map<String, Object>> historicalAttempts = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> historicalAttempts = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("identifier", identifier));
 
       boolean isNewIp = historicalAttempts.stream()
-          .noneMatch(attempt -> clientIp.equals(attempt.get("clientIp")));
+          .noneMatch(attempt -> clientIp.equals(attempt.getClientIp()));
 
       return isNewIp ? 15 : 0;
 
@@ -551,17 +516,16 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   private int assessFrequencyRisk(String identifier, String clientIp) {
     // 简化实现：检查短时间内的尝试次数
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("clientIp", clientIp);
-
-      List<Map<String, Object>> recentAttempts = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> recentAttempts = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("clientIp", clientIp));
 
       // 检查过去1小时内的尝试次数
-      Date oneHourAgo = new Date(System.currentTimeMillis() - 3600 * 1000);
+      LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
       long recentCount = recentAttempts.stream()
           .filter(attempt -> {
-            Date lastAttempt = (Date) attempt.get("lastAttemptAt");
-            return lastAttempt != null && lastAttempt.after(oneHourAgo);
+            LocalDateTime lastAttempt = attempt.getLastAttemptAt();
+            return lastAttempt != null && lastAttempt.isAfter(oneHourAgo);
           })
           .count();
 
@@ -585,10 +549,9 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   private int assessBehaviorRisk(String identifier) {
     // 简化实现：检查历史失败率
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
-
-      List<Map<String, Object>> attempts = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> attempts = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("identifier", identifier));
 
       if (attempts.isEmpty()) {
         return 5; // 新用户轻微风险
@@ -597,7 +560,7 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
       // 计算平均失败次数
       double avgFailures = attempts.stream()
           .mapToInt(attempt -> {
-            Integer count = (Integer) attempt.get("attemptCount");
+            Integer count = attempt.getAttemptCount();
             return count != null ? count : 0;
           })
           .average()
@@ -623,21 +586,20 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
   private boolean shouldAutoBlacklistIp(String clientIp) {
     try {
       // 统计该IP在指定时间窗口内的所有失败尝试
-      Date timeWindow = new Date(System.currentTimeMillis() - config.getIpCheckWindowHours() * 3600 * 1000L);
+      LocalDateTime timeWindow = LocalDateTime.now().minusHours(config.getIpCheckWindowHours());
 
       // 查询该IP的所有失败记录
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("clientIp", clientIp);
-
-      List<Map<String, Object>> ipFailures = dataService.findByCriteria(LOGIN_ATTEMPTS_COLLECTION, criteria);
+      List<LoginAttempt> ipFailures = loginAttemptRepository.findBy(
+          QueryCriteria.<LoginAttempt>create()
+              .eq("clientIp", clientIp));
 
       long recentFailures = ipFailures.stream()
           .filter(attempt -> {
-            Date lastAttempt = convertToDate(attempt.get("lastAttemptAt"));
-            return lastAttempt != null && lastAttempt.after(timeWindow);
+            LocalDateTime lastAttempt = attempt.getLastAttemptAt();
+            return lastAttempt != null && lastAttempt.isAfter(timeWindow);
           })
           .mapToInt(attempt -> {
-            Integer count = (Integer) attempt.get("attemptCount");
+            Integer count = attempt.getAttemptCount();
             return count != null ? count : 0;
           })
           .sum();
@@ -658,21 +620,19 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
    */
   private boolean autoBlacklistIp(String clientIp, String reason, int durationMinutes) {
     try {
-      Map<String, Object> blacklistEntry = new HashMap<>();
-      blacklistEntry.put("id", UUID.randomUUID().toString());
-      blacklistEntry.put("ipAddress", clientIp);
-      blacklistEntry.put("blacklistType", "auto"); // 修正为正确的枚举值
-      blacklistEntry.put("reason", reason);
-      blacklistEntry.put("lastViolationAt", new Date());
-      blacklistEntry.put("createdAt", new Date());
-      blacklistEntry.put("updatedAt", new Date());
+      IpBlacklist blacklistEntry = IpBlacklist.builder()
+          .ipAddress(clientIp)
+          .reason(reason)
+          .blockedBy("system")
+          .isPermanent(durationMinutes <= 0)
+          .build();
 
       if (durationMinutes > 0) {
         Date expiresAt = new Date(System.currentTimeMillis() + durationMinutes * 60 * 1000L);
-        blacklistEntry.put("expiresAt", expiresAt);
+        blacklistEntry.setExpiresAt(expiresAt);
       }
 
-      Map<String, Object> saved = dataService.save(IP_BLACKLIST_COLLECTION, blacklistEntry);
+      IpBlacklist saved = ipBlacklistRepository.save(blacklistEntry);
       return saved != null;
 
     } catch (Exception e) {
@@ -681,99 +641,4 @@ public class LoginSecurityServiceImpl implements LoginSecurityService {
     }
   }
 
-  /**
-   * 将Map转换为LoginAttempt实体
-   */
-  private LoginAttempt mapToLoginAttempt(Map<String, Object> map) {
-    LoginAttempt attempt = new LoginAttempt();
-    attempt.setId((String) map.get("id"));
-    attempt.setIdentifier((String) map.get("identifier"));
-    attempt.setIdentifierType((String) map.get("identifierType"));
-    attempt.setClientIp((String) map.get("clientIp"));
-    attempt.setAttemptCount((Integer) map.get("attemptCount"));
-    attempt.setLockLevel((String) map.get("lockLevel"));
-    attempt.setLockReason((String) map.get("lockReason"));
-    attempt.setCreatedAt(convertToDate(map.get("createdAt")));
-    attempt.setUpdatedAt(convertToDate(map.get("updatedAt")));
-
-    // 处理时间字段
-    Date firstAttemptAt = convertToDate(map.get("firstAttemptAt"));
-    if (firstAttemptAt != null) {
-      attempt.setFirstAttemptAt(firstAttemptAt.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-    }
-
-    Date lastAttemptAt = convertToDate(map.get("lastAttemptAt"));
-    if (lastAttemptAt != null) {
-      attempt.setLastAttemptAt(lastAttemptAt.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-    }
-
-    Date lockedUntil = convertToDate(map.get("lockedUntil"));
-    if (lockedUntil != null) {
-      attempt.setLockedUntil(lockedUntil.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-    }
-
-    return attempt;
-  }
-
-  /**
-   * 将LoginAttempt实体转换为Map
-   */
-  private Map<String, Object> loginAttemptToMap(LoginAttempt attempt) {
-    Map<String, Object> map = new HashMap<>();
-    map.put("id", attempt.getId());
-    map.put("identifier", attempt.getIdentifier());
-    map.put("identifierType", attempt.getIdentifierType());
-    map.put("clientIp", attempt.getClientIp());
-    map.put("attemptCount", attempt.getAttemptCount());
-    map.put("lockLevel", attempt.getLockLevel());
-    map.put("lockReason", attempt.getLockReason());
-    map.put("createdAt", attempt.getCreatedAt());
-    map.put("updatedAt", attempt.getUpdatedAt());
-
-    if (attempt.getFirstAttemptAt() != null) {
-      map.put("firstAttemptAt", Date.from(attempt.getFirstAttemptAt().atZone(ZoneId.systemDefault()).toInstant()));
-    }
-
-    if (attempt.getLastAttemptAt() != null) {
-      map.put("lastAttemptAt", Date.from(attempt.getLastAttemptAt().atZone(ZoneId.systemDefault()).toInstant()));
-    }
-
-    if (attempt.getLockedUntil() != null) {
-      map.put("lockedUntil", Date.from(attempt.getLockedUntil().atZone(ZoneId.systemDefault()).toInstant()));
-    }
-
-    return map;
-  }
-
-  /**
-   * 将对象转换为Date类型
-   */
-  private Date convertToDate(Object obj) {
-    if (obj == null) {
-      return null;
-    }
-    if (obj instanceof Date) {
-      return (Date) obj;
-    }
-    if (obj instanceof Long) {
-      return new Date((Long) obj);
-    }
-    return null;
-  }
-
-  /**
-   * 将对象转换为LocalDateTime类型
-   */
-  private LocalDateTime convertToLocalDateTime(Object obj) {
-    if (obj == null) {
-      return null;
-    }
-    if (obj instanceof Date) {
-      return ((Date) obj).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-    }
-    if (obj instanceof Long) {
-      return new Date((Long) obj).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-    }
-    return null;
-  }
 }

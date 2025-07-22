@@ -3,10 +3,15 @@ package work.anyway.packages.auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import work.anyway.interfaces.auth.LoginLog;
 import work.anyway.interfaces.auth.LoginLogService;
-import work.anyway.interfaces.data.DataService;
+import work.anyway.interfaces.data.Repository;
+import work.anyway.interfaces.data.TypedDataService;
+import work.anyway.interfaces.data.QueryCriteria;
+import work.anyway.interfaces.data.QueryOptions;
+import work.anyway.interfaces.data.PageResult;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -25,10 +30,12 @@ public class LoginLogServiceImpl implements LoginLogService {
 
   private static final Logger LOG = LoggerFactory.getLogger(LoginLogServiceImpl.class);
 
-  private static final String LOGIN_LOGS_COLLECTION = "login_logs";
+  private final Repository<LoginLog> loginLogRepository;
 
   @Autowired
-  private DataService dataService;
+  public LoginLogServiceImpl(@Qualifier("enhancedDataService") TypedDataService dataService) {
+    this.loginLogRepository = dataService.getRepository("login_logs", LoginLog.class);
+  }
 
   @Override
   public String recordSuccessfulLogin(LoginLog loginLog) {
@@ -37,20 +44,13 @@ public class LoginLogServiceImpl implements LoginLogService {
 
     try {
       loginLog.setLoginStatus("success");
-      if (loginLog.getId() == null) {
-        loginLog.setId(UUID.randomUUID().toString());
-      }
-      if (loginLog.getCreatedAt() == null) {
-        loginLog.setCreatedAt(new Date());
-      }
 
-      Map<String, Object> logMap = loginLogToMap(loginLog);
-      Map<String, Object> saved = dataService.save(LOGIN_LOGS_COLLECTION, logMap);
+      LoginLog saved = loginLogRepository.save(loginLog);
 
       if (saved != null) {
         LOG.info("Successful login recorded: user={}, identifier={}, IP={}",
-            loginLog.getUserId(), loginLog.getIdentifier(), loginLog.getClientIp());
-        return loginLog.getId();
+            saved.getUserId(), saved.getIdentifier(), saved.getClientIp());
+        return saved.getId();
       }
       return null;
 
@@ -67,20 +67,13 @@ public class LoginLogServiceImpl implements LoginLogService {
 
     try {
       loginLog.setLoginStatus("failed");
-      if (loginLog.getId() == null) {
-        loginLog.setId(UUID.randomUUID().toString());
-      }
-      if (loginLog.getCreatedAt() == null) {
-        loginLog.setCreatedAt(new Date());
-      }
 
-      Map<String, Object> logMap = loginLogToMap(loginLog);
-      Map<String, Object> saved = dataService.save(LOGIN_LOGS_COLLECTION, logMap);
+      LoginLog saved = loginLogRepository.save(loginLog);
 
       if (saved != null) {
         LOG.info("Failed login recorded: identifier={}, IP={}, reason={}",
-            loginLog.getIdentifier(), loginLog.getClientIp(), loginLog.getFailureReason());
-        return loginLog.getId();
+            saved.getIdentifier(), saved.getClientIp(), saved.getFailureReason());
+        return saved.getId();
       }
       return null;
 
@@ -96,25 +89,18 @@ public class LoginLogServiceImpl implements LoginLogService {
 
     try {
       loginLog.setLoginStatus("blocked");
-      if (loginLog.getId() == null) {
-        loginLog.setId(UUID.randomUUID().toString());
-      }
-      if (loginLog.getCreatedAt() == null) {
-        loginLog.setCreatedAt(new Date());
-      }
 
       // 被阻止的登录通常风险较高
       if (loginLog.getRiskScore() == null || loginLog.getRiskScore() < 70) {
         loginLog.setRiskScore(75);
       }
 
-      Map<String, Object> logMap = loginLogToMap(loginLog);
-      Map<String, Object> saved = dataService.save(LOGIN_LOGS_COLLECTION, logMap);
+      LoginLog saved = loginLogRepository.save(loginLog);
 
       if (saved != null) {
         LOG.warn("Blocked login recorded: identifier={}, IP={}, reason={}",
-            loginLog.getIdentifier(), loginLog.getClientIp(), loginLog.getFailureReason());
-        return loginLog.getId();
+            saved.getIdentifier(), saved.getClientIp(), saved.getFailureReason());
+        return saved.getId();
       }
       return null;
 
@@ -129,14 +115,13 @@ public class LoginLogServiceImpl implements LoginLogService {
     LOG.debug("Getting login history for user: {}, limit: {}", userId, limit);
 
     try {
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("userId", userId);
-
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_LOGS_COLLECTION, criteria);
+      List<LoginLog> results = loginLogRepository.findBy(
+          QueryCriteria.<LoginLog>create()
+              .eq("userId", userId)
+              .orderBy("createdAt", false) // 按时间倒序
+      );
 
       return results.stream()
-          .map(this::mapToLoginLog)
-          .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())) // 按时间倒序
           .limit(limit)
           .collect(Collectors.toList());
 
@@ -153,15 +138,13 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - hours * 3600 * 1000L);
 
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("clientIp", clientIp);
-
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_LOGS_COLLECTION, criteria);
+      List<LoginLog> results = loginLogRepository.findBy(
+          QueryCriteria.<LoginLog>create()
+              .eq("clientIp", clientIp)
+              .orderBy("createdAt", false));
 
       return results.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> log.getCreatedAt().after(cutoffTime))
-          .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
           .collect(Collectors.toList());
 
     } catch (Exception e) {
@@ -177,15 +160,13 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - hours * 3600 * 1000L);
 
-      Map<String, Object> criteria = new HashMap<>();
-      criteria.put("identifier", identifier);
-
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_LOGS_COLLECTION, criteria);
+      List<LoginLog> results = loginLogRepository.findBy(
+          QueryCriteria.<LoginLog>create()
+              .eq("identifier", identifier)
+              .orderBy("createdAt", false));
 
       return results.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> log.getCreatedAt().after(cutoffTime))
-          .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
           .collect(Collectors.toList());
 
     } catch (Exception e) {
@@ -201,10 +182,9 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - hours * 3600 * 1000L);
 
-      List<Map<String, Object>> allLogs = dataService.findAll(LOGIN_LOGS_COLLECTION);
+      List<LoginLog> allLogs = loginLogRepository.findAll();
 
       return allLogs.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> {
             if (log.getCreatedAt().before(cutoffTime)) {
               return false;
@@ -271,15 +251,14 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - hours * 3600 * 1000L);
 
-      Map<String, Object> criteria = new HashMap<>();
+      QueryCriteria<LoginLog> criteria = QueryCriteria.<LoginLog>create();
       if (status != null && !status.isEmpty()) {
-        criteria.put("loginStatus", status);
+        criteria.eq("loginStatus", status);
       }
 
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_LOGS_COLLECTION, criteria);
+      List<LoginLog> results = loginLogRepository.findBy(criteria);
 
       List<LoginLog> recentLogs = results.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> log.getCreatedAt().after(cutoffTime))
           .collect(Collectors.toList());
 
@@ -319,10 +298,9 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - days * 24 * 3600 * 1000L);
 
-      List<Map<String, Object>> results = dataService.findAll(LOGIN_LOGS_COLLECTION);
+      List<LoginLog> results = loginLogRepository.findAll();
 
       List<LoginLog> recentLogs = results.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> log.getCreatedAt().after(cutoffTime))
           .collect(Collectors.toList());
 
@@ -368,10 +346,9 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - hours * 3600 * 1000L);
 
-      List<Map<String, Object>> results = dataService.findAll(LOGIN_LOGS_COLLECTION);
+      List<LoginLog> results = loginLogRepository.findAll();
 
       Map<String, Long> ipCounts = results.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> log.getCreatedAt().after(cutoffTime))
           .collect(Collectors.groupingBy(
               LoginLog::getClientIp,
@@ -399,10 +376,9 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - hours * 3600 * 1000L);
 
-      List<Map<String, Object>> results = dataService.findAll(LOGIN_LOGS_COLLECTION);
+      List<LoginLog> results = loginLogRepository.findAll();
 
       Map<String, Long> failedCounts = results.stream()
-          .map(this::mapToLoginLog)
           .filter(log -> log.getCreatedAt().after(cutoffTime))
           .filter(log -> "failed".equals(log.getLoginStatus()) || "blocked".equals(log.getLoginStatus()))
           .collect(Collectors.groupingBy(
@@ -431,16 +407,13 @@ public class LoginLogServiceImpl implements LoginLogService {
     try {
       Date cutoffTime = new Date(System.currentTimeMillis() - daysToKeep * 24 * 3600 * 1000L);
 
-      List<Map<String, Object>> allLogs = dataService.findAll(LOGIN_LOGS_COLLECTION);
+      List<LoginLog> allLogs = loginLogRepository.findAll();
       List<String> expiredIds = allLogs.stream()
-          .filter(logMap -> {
-            Date createdAt = (Date) logMap.get("createdAt");
-            return createdAt != null && createdAt.before(cutoffTime);
-          })
-          .map(logMap -> (String) logMap.get("id"))
+          .filter(log -> log.getCreatedAt() != null && log.getCreatedAt().before(cutoffTime))
+          .map(LoginLog::getId)
           .collect(Collectors.toList());
 
-      int deletedCount = dataService.batchDelete(LOGIN_LOGS_COLLECTION, expiredIds);
+      int deletedCount = loginLogRepository.batchDelete(expiredIds);
       LOG.info("Cleaned {} expired login logs", deletedCount);
       return deletedCount;
 
@@ -455,8 +428,8 @@ public class LoginLogServiceImpl implements LoginLogService {
     LOG.debug("Getting login log by ID: {}", logId);
 
     try {
-      Optional<Map<String, Object>> result = dataService.findById(LOGIN_LOGS_COLLECTION, logId);
-      return result.map(this::mapToLoginLog).orElse(null);
+      Optional<LoginLog> result = loginLogRepository.findById(logId);
+      return result.orElse(null);
 
     } catch (Exception e) {
       LOG.error("Failed to get login log by ID", e);
@@ -469,11 +442,13 @@ public class LoginLogServiceImpl implements LoginLogService {
     LOG.debug("Searching login logs with criteria: {}, limit: {}", criteria, limit);
 
     try {
-      List<Map<String, Object>> results = dataService.findByCriteria(LOGIN_LOGS_COLLECTION, criteria);
+      QueryCriteria<LoginLog> queryCriteria = QueryCriteria.<LoginLog>create();
+      criteria.forEach(queryCriteria::eq);
+
+      List<LoginLog> results = loginLogRepository.findBy(
+          queryCriteria.orderBy("createdAt", false));
 
       return results.stream()
-          .map(this::mapToLoginLog)
-          .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
           .limit(limit)
           .collect(Collectors.toList());
 
@@ -498,64 +473,4 @@ public class LoginLogServiceImpl implements LoginLogService {
     return hour < 6 || (hour > 23 && (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY));
   }
 
-  /**
-   * 将Map转换为LoginLog实体
-   */
-  private LoginLog mapToLoginLog(Map<String, Object> map) {
-    LoginLog log = new LoginLog();
-    log.setId((String) map.get("id"));
-    log.setUserId((String) map.get("userId"));
-    log.setIdentifier((String) map.get("identifier"));
-    log.setIdentifierType((String) map.get("identifierType"));
-    log.setLoginStatus((String) map.get("loginStatus"));
-    log.setFailureReason((String) map.get("failureReason"));
-    log.setClientIp((String) map.get("clientIp"));
-    log.setUserAgent((String) map.get("userAgent"));
-    log.setLoginSource((String) map.get("loginSource"));
-    log.setSessionId((String) map.get("sessionId"));
-    log.setLocationInfo((String) map.get("locationInfo"));
-    log.setDeviceInfo((String) map.get("deviceInfo"));
-    log.setRiskScore((Integer) map.get("riskScore"));
-    log.setLoginDuration((Integer) map.get("loginDuration"));
-    // 处理时间戳转换
-    Object createdAtObj = map.get("createdAt");
-    if (createdAtObj instanceof Long) {
-      log.setCreatedAt(new Date((Long) createdAtObj));
-    } else if (createdAtObj instanceof Date) {
-      log.setCreatedAt((Date) createdAtObj);
-    } else if (createdAtObj != null) {
-      // 尝试解析字符串格式的时间
-      try {
-        log.setCreatedAt(new Date(Long.parseLong(createdAtObj.toString())));
-      } catch (NumberFormatException e) {
-        LOG.warn("Failed to parse createdAt: {}", createdAtObj);
-        log.setCreatedAt(new Date());
-      }
-    }
-    return log;
-  }
-
-  /**
-   * 将LoginLog实体转换为Map
-   */
-  private Map<String, Object> loginLogToMap(LoginLog log) {
-    Map<String, Object> map = new HashMap<>();
-    map.put("id", log.getId());
-    map.put("userId", log.getUserId());
-    map.put("identifier", log.getIdentifier());
-    map.put("identifierType", log.getIdentifierType());
-    map.put("loginStatus", log.getLoginStatus());
-    map.put("failureReason", log.getFailureReason());
-    map.put("clientIp", log.getClientIp());
-    map.put("userAgent", log.getUserAgent());
-    map.put("loginSource", log.getLoginSource());
-    map.put("sessionId", log.getSessionId());
-    map.put("locationInfo", log.getLocationInfo());
-    map.put("deviceInfo", log.getDeviceInfo());
-    map.put("riskScore", log.getRiskScore());
-    map.put("loginDuration", log.getLoginDuration());
-    // 存储时间戳而不是Date对象，以兼容不同的数据存储实现
-    map.put("createdAt", log.getCreatedAt() != null ? log.getCreatedAt().getTime() : System.currentTimeMillis());
-    return map;
-  }
 }

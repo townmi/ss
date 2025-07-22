@@ -1375,6 +1375,60 @@ public class AuthPlugin {
     }
   }
 
+  /**
+   * 渲染登录日志页面
+   */
+  @GetMapping("/logs/page")
+  @Intercepted({ "SimpleAuth" })
+  public void renderLoginLogsPage(RoutingContext ctx) {
+    LOG.debug("Rendering login logs page");
+
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "登录日志");
+      data.put("currentUserId", ctx.get("userId"));
+      data.put("currentUserRole", ctx.get("userRole"));
+
+      String html = renderTemplate("login-logs.mustache", data);
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Failed to render login logs page", e);
+      ctx.response()
+          .setStatusCode(500)
+          .end("Internal Server Error");
+    }
+  }
+
+  /**
+   * 渲染设置页面
+   */
+  @GetMapping("/settings/page")
+  @Intercepted({ "SimpleAuth" })
+  public void renderSettingsPage(RoutingContext ctx) {
+    LOG.debug("Rendering settings page");
+
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "认证设置");
+      data.put("currentUserId", ctx.get("userId"));
+      data.put("currentUserRole", ctx.get("userRole"));
+
+      String html = renderTemplate("auth-settings.mustache", data);
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Failed to render settings page", e);
+      ctx.response()
+          .setStatusCode(500)
+          .end("Internal Server Error");
+    }
+  }
+
   // 辅助方法
 
   private void sendError(RoutingContext ctx, int statusCode, String message) {

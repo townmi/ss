@@ -1,6 +1,8 @@
 package work.anyway.interfaces.auth;
 
 import lombok.*;
+import work.anyway.annotations.*;
+import work.anyway.interfaces.data.Entity;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -12,25 +14,41 @@ import java.util.Date;
  * @since 1.0.0
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginAttempt {
+@Table("login_attempts")
+public class LoginAttempt extends Entity {
 
-  private String id; // 实体ID
+  @Column("identifier")
   private String identifier; // 登录标识符
+
+  @Column("identifier_type")
   private String identifierType; // 标识符类型
+
+  @Column("client_ip")
   private String clientIp; // 客户端IP
+
+  @Column("attempt_count")
   @Builder.Default
   private Integer attemptCount = 1; // 尝试次数
+
+  @Column("first_attempt_at")
   private LocalDateTime firstAttemptAt; // 首次尝试时间
+
+  @Column("last_attempt_at")
   private LocalDateTime lastAttemptAt; // 最后尝试时间
+
+  @Column("locked_until")
   private LocalDateTime lockedUntil; // 锁定到什么时间
+
+  @Column("lock_level")
   @Builder.Default
   private String lockLevel = "none"; // 锁定级别
+
+  @Column("lock_reason")
   private String lockReason; // 锁定原因
-  private Date createdAt; // 创建时间
-  private Date updatedAt; // 更新时间
 
   public LoginAttempt(String identifier, String identifierType, String clientIp) {
     this.identifier = identifier;
@@ -76,18 +94,4 @@ public class LoginAttempt {
     this.lockReason = null;
   }
 
-  @Override
-  public String toString() {
-    return "LoginAttempt{" +
-        "id='" + getId() + '\'' +
-        ", identifier='" + identifier + '\'' +
-        ", identifierType='" + identifierType + '\'' +
-        ", clientIp='" + clientIp + '\'' +
-        ", attemptCount=" + attemptCount +
-        ", firstAttemptAt=" + firstAttemptAt +
-        ", lastAttemptAt=" + lastAttemptAt +
-        ", lockedUntil=" + lockedUntil +
-        ", lockLevel='" + lockLevel + '\'' +
-        '}';
-  }
 }

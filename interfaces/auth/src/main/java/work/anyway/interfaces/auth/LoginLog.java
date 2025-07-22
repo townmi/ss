@@ -1,6 +1,8 @@
 package work.anyway.interfaces.auth;
 
 import lombok.*;
+import work.anyway.annotations.*;
+import work.anyway.interfaces.data.Entity;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -12,29 +14,53 @@ import java.util.Date;
  * @since 1.0.0
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginLog {
+@Table("login_logs")
+public class LoginLog extends Entity {
 
-  private String id; // 日志ID
+  @Column("user_id")
   private String userId; // 用户ID（成功登录时有值）
+
+  @Column("identifier")
   private String identifier; // 登录标识符
+
+  @Column("identifier_type")
   private String identifierType; // 标识符类型
+
+  @Column("login_status")
   private String loginStatus; // 登录状态
+
+  @Column("failure_reason")
   private String failureReason; // 失败原因
+
+  @Column("client_ip")
   private String clientIp; // 客户端IP
+
+  @Column("user_agent")
   private String userAgent; // 用户代理
+
+  @Column("login_source")
   @Builder.Default
   private String loginSource = "web"; // 登录来源
+
+  @Column("session_id")
   private String sessionId; // 会话ID
+
+  @Column("location_info")
   private String locationInfo; // 地理位置信息（JSON格式）
+
+  @Column("device_info")
   private String deviceInfo; // 设备信息（JSON格式）
+
+  @Column("risk_score")
   @Builder.Default
   private Integer riskScore = 0; // 风险评分
+
+  @Column("login_duration")
   private Integer loginDuration; // 登录耗时（毫秒）
-  @Builder.Default
-  private Date createdAt = new Date(); // 创建时间
 
   public LoginLog(String identifier, String identifierType, String loginStatus, String clientIp) {
     this.identifier = identifier;
@@ -43,20 +69,6 @@ public class LoginLog {
     this.clientIp = clientIp;
     this.loginSource = "web";
     this.riskScore = 0;
-    this.createdAt = new Date();
-  }
-
-  @Override
-  public String toString() {
-    return "LoginLog{" +
-        "id='" + id + '\'' +
-        ", userId='" + userId + '\'' +
-        ", identifier='" + identifier + '\'' +
-        ", identifierType='" + identifierType + '\'' +
-        ", loginStatus='" + loginStatus + '\'' +
-        ", clientIp='" + clientIp + '\'' +
-        ", riskScore=" + riskScore +
-        ", createdAt=" + createdAt +
-        '}';
+    this.setCreatedAt(new Date());
   }
 }

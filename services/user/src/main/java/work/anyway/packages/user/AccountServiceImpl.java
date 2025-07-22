@@ -3,8 +3,11 @@ package work.anyway.packages.user;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import work.anyway.interfaces.data.DataService;
+import work.anyway.interfaces.data.Repository;
+import work.anyway.interfaces.data.TypedDataService;
+import work.anyway.interfaces.data.QueryCriteria;
 import work.anyway.interfaces.user.AccountService;
 import work.anyway.interfaces.user.AccountType;
 import work.anyway.interfaces.user.UserAccount;
@@ -14,7 +17,7 @@ import java.util.stream.Collectors;
 
 /**
  * 账户服务实现
- * 使用 DataService 进行数据存储
+ * 使用类型安全的 Repository 进行数据存储
  * 
  * @author 作者名
  * @since 1.0.0
@@ -23,10 +26,13 @@ import java.util.stream.Collectors;
 public class AccountServiceImpl implements AccountService {
 
   private static final Logger LOG = LoggerFactory.getLogger(AccountServiceImpl.class);
-  private static final String COLLECTION_NAME = "user_accounts";
+
+  private final Repository<UserAccount> accountRepository;
 
   @Autowired
-  private DataService dataService;
+  public AccountServiceImpl(@Qualifier("enhancedDataService") TypedDataService dataService) {
+    this.accountRepository = dataService.getRepository("user_accounts", UserAccount.class);
+  }
 
   @Override
   public UserAccount createAccount(UserAccount account) {
@@ -48,30 +54,8 @@ public class AccountServiceImpl implements AccountService {
       throw new IllegalArgumentException("Account already exists: " + account.getIdentifier());
     }
 
-    // 生成唯一的账户ID
-    if (account.getId() == null || account.getId().trim().isEmpty()) {
-      String accountId = UUID.randomUUID().toString();
-      account.setId(accountId);
-      LOG.debug("Generated new account ID: {}", accountId);
-    }
-
-    // 设置默认值
-    if (account.getVerified() == null) {
-      account.setVerified(false);
-    }
-    if (account.getPrimaryAccount() == null) {
-      account.setPrimaryAccount(false);
-    }
-    if (account.getCreatedAt() == null) {
-      account.setCreatedAt(new Date());
-    }
-    account.setUpdatedAt(new Date());
-
-    // 转换为Map并保存
-    Map<String, Object> accountMap = accountToMap(account);
-    Map<String, Object> savedAccountMap = dataService.save(COLLECTION_NAME, accountMap);
-
-    UserAccount savedAccount = mapToAccount(savedAccountMap);
+    // Repository 会自动处理 ID 和时间戳
+    UserAccount savedAccount = accountRepository.save(account);
     LOG.info("Account created with id: {}", savedAccount.getId());
     return savedAccount;
   }
@@ -79,57 +63,49 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public Optional<UserAccount> getAccountById(String accountId) {
     LOG.debug("Getting account by id: {}", accountId);
-    Optional<Map<String, Object>> accountMap = dataService.findById(COLLECTION_NAME, accountId);
-    return accountMap.map(this::mapToAccount);
+    return accountRepository.findById(accountId);
   }
 
   @Override
   public Optional<UserAccount> findAccount(String identifier, AccountType accountType) {
     LOG.debug("Finding account by identifier: {} and type: {}", identifier, accountType);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("identifier", identifier);
-    criteria.put("accountType", accountType.getCode());
-
-    List<Map<String, Object>> accounts = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return accounts.isEmpty() ? Optional.empty() : Optional.of(mapToAccount(accounts.get(0)));
+    List<UserAccount> accounts = accountRepository.findBy(
+        QueryCriteria.<UserAccount>create()
+            .eq("identifier", identifier)
+            .eq("accountType", accountType));
+    return accounts.isEmpty() ? Optional.empty() : Optional.of(accounts.get(0));
   }
 
   @Override
   public List<UserAccount> getUserAccounts(String userId) {
     LOG.debug("Getting accounts for user: {}", userId);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("userId", userId);
-
-    List<Map<String, Object>> accountMaps = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return accountMaps.stream()
-        .map(this::mapToAccount)
-        .collect(Collectors.toList());
+    return accountRepository.findBy(
+        QueryCriteria.<UserAccount>create()
+            .eq("userId", userId));
   }
 
   @Override
   public Optional<UserAccount> getPrimaryAccount(String userId) {
     LOG.debug("Getting primary account for user: {}", userId);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("userId", userId);
-    criteria.put("primaryAccount", true);
-
-    List<Map<String, Object>> accounts = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return accounts.isEmpty() ? Optional.empty() : Optional.of(mapToAccount(accounts.get(0)));
+    List<UserAccount> accounts = accountRepository.findBy(
+        QueryCriteria.<UserAccount>create()
+            .eq("userId", userId)
+            .eq("primaryAccount", true));
+    return accounts.isEmpty() ? Optional.empty() : Optional.of(accounts.get(0));
   }
 
   @Override
   public Optional<UserAccount> getEmailAccount(String userId) {
     LOG.debug("Getting email account for user: {}", userId);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("userId", userId);
-    criteria.put("accountType", AccountType.EMAIL.getCode());
-
-    List<Map<String, Object>> accounts = dataService.findByCriteria(COLLECTION_NAME, criteria);
-    return accounts.isEmpty() ? Optional.empty() : Optional.of(mapToAccount(accounts.get(0)));
+    List<UserAccount> accounts = accountRepository.findBy(
+        QueryCriteria.<UserAccount>create()
+            .eq("userId", userId)
+            .eq("accountType", AccountType.EMAIL));
+    return accounts.isEmpty() ? Optional.empty() : Optional.of(accounts.get(0));
   }
 
   @Override
@@ -160,12 +136,11 @@ public class AccountServiceImpl implements AccountService {
       return false;
     }
 
-    // 更新时间戳
-    account.setUpdatedAt(new Date());
+    // 设置ID以确保更新正确的记录
+    account.setId(accountId);
 
-    // 转换为Map并更新
-    Map<String, Object> accountMap = accountToMap(account);
-    boolean updated = dataService.update(COLLECTION_NAME, accountId, accountMap);
+    // Repository 会自动处理更新时间戳
+    boolean updated = accountRepository.update(account);
 
     if (updated) {
       LOG.info("Account updated: {}", accountId);
@@ -248,7 +223,7 @@ public class AccountServiceImpl implements AccountService {
   public boolean deleteAccount(String accountId) {
     LOG.debug("Deleting account: {}", accountId);
 
-    boolean deleted = dataService.delete(COLLECTION_NAME, accountId);
+    boolean deleted = accountRepository.delete(accountId);
     if (deleted) {
       LOG.info("Account deleted: {}", accountId);
     } else {
@@ -267,150 +242,26 @@ public class AccountServiceImpl implements AccountService {
   public boolean hasAccountType(String userId, AccountType accountType) {
     LOG.debug("Checking if user {} has account type: {}", userId, accountType);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("userId", userId);
-    criteria.put("accountType", accountType.getCode());
-
-    List<Map<String, Object>> accounts = dataService.findByCriteria(COLLECTION_NAME, criteria);
+    List<UserAccount> accounts = accountRepository.findBy(
+        QueryCriteria.<UserAccount>create()
+            .eq("userId", userId)
+            .eq("accountType", accountType));
     return !accounts.isEmpty();
   }
 
   @Override
   public long getAccountCount() {
     LOG.debug("Getting account count");
-    return dataService.count(COLLECTION_NAME);
+    return accountRepository.count();
   }
 
   @Override
   public long getAccountCountByType(AccountType accountType) {
     LOG.debug("Getting account count by type: {}", accountType);
 
-    Map<String, Object> criteria = new HashMap<>();
-    criteria.put("accountType", accountType.getCode());
-
-    return dataService.countByCriteria(COLLECTION_NAME, criteria);
+    return accountRepository.countBy(
+        QueryCriteria.<UserAccount>create()
+            .eq("accountType", accountType));
   }
 
-  // 辅助方法
-
-  /**
-   * 将Map转换为UserAccount实体
-   */
-  private UserAccount mapToAccount(Map<String, Object> map) {
-    UserAccount account = new UserAccount();
-    account.setId((String) map.get("id"));
-    account.setUserId((String) map.get("userId"));
-
-    String accountTypeCode = (String) map.get("accountType");
-    account.setAccountType(AccountType.fromCode(accountTypeCode));
-
-    account.setIdentifier((String) map.get("identifier"));
-    account.setCredentials((String) map.get("credentials"));
-    account.setVerified(convertToBoolean(map.get("verified")));
-    account.setPrimaryAccount(convertToBoolean(map.get("primaryAccount")));
-    account.setRegistrationIp((String) map.get("registrationIp"));
-
-    // 处理日期字段
-    Object createdAt = map.get("createdAt");
-    if (createdAt instanceof Long) {
-      account.setCreatedAt(new Date((Long) createdAt));
-    } else if (createdAt instanceof Date) {
-      account.setCreatedAt((Date) createdAt);
-    }
-
-    Object updatedAt = map.get("updatedAt");
-    if (updatedAt instanceof Long) {
-      account.setUpdatedAt(new Date((Long) updatedAt));
-    } else if (updatedAt instanceof Date) {
-      account.setUpdatedAt((Date) updatedAt);
-    }
-
-    Object lastLogin = map.get("lastLogin");
-    if (lastLogin instanceof Long) {
-      account.setLastLogin(new Date((Long) lastLogin));
-    } else if (lastLogin instanceof Date) {
-      account.setLastLogin((Date) lastLogin);
-    }
-
-    return account;
-  }
-
-  /**
-   * 安全地将数据库值转换为Boolean
-   * 处理不同数据库驱动返回的不同类型（Byte、Integer、Boolean等）
-   */
-  private Boolean convertToBoolean(Object value) {
-    if (value == null) {
-      return false;
-    }
-
-    if (value instanceof Boolean) {
-      return (Boolean) value;
-    }
-
-    if (value instanceof Byte) {
-      return ((Byte) value) != 0;
-    }
-
-    if (value instanceof Integer) {
-      return ((Integer) value) != 0;
-    }
-
-    if (value instanceof Long) {
-      return ((Long) value) != 0L;
-    }
-
-    if (value instanceof String) {
-      String str = ((String) value).toLowerCase();
-      return "true".equals(str) || "1".equals(str) || "yes".equals(str);
-    }
-
-    // 默认返回false
-    LOG.warn("Unknown boolean value type: {} ({}), defaulting to false",
-        value.getClass().getSimpleName(), value);
-    return false;
-  }
-
-  /**
-   * 将UserAccount实体转换为Map
-   */
-  private Map<String, Object> accountToMap(UserAccount account) {
-    Map<String, Object> map = new HashMap<>();
-
-    if (account.getId() != null) {
-      map.put("id", account.getId());
-    }
-    if (account.getUserId() != null) {
-      map.put("userId", account.getUserId());
-    }
-    if (account.getAccountType() != null) {
-      map.put("accountType", account.getAccountType().getCode());
-    }
-    if (account.getIdentifier() != null) {
-      map.put("identifier", account.getIdentifier());
-    }
-    if (account.getCredentials() != null) {
-      map.put("credentials", account.getCredentials());
-    }
-    if (account.getVerified() != null) {
-      map.put("verified", account.getVerified());
-    }
-    if (account.getPrimaryAccount() != null) {
-      map.put("primaryAccount", account.getPrimaryAccount());
-    }
-    if (account.getRegistrationIp() != null) {
-      map.put("registrationIp", account.getRegistrationIp());
-    }
-    if (account.getCreatedAt() != null) {
-      map.put("createdAt", account.getCreatedAt().getTime());
-    }
-    if (account.getUpdatedAt() != null) {
-      map.put("updatedAt", account.getUpdatedAt().getTime());
-    }
-    if (account.getLastLogin() != null) {
-      map.put("lastLogin", account.getLastLogin().getTime());
-    }
-
-    return map;
-  }
 }

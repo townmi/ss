@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import work.anyway.annotations.*;
 import work.anyway.interfaces.auth.*;
+import work.anyway.interfaces.auth.IpBlacklist;
 
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +46,115 @@ public class SecurityManagementController extends BaseAuthController {
 
   @Autowired
   private LoginLogService loginLogService;
+
+  /**
+   * 渲染安全统计页面
+   */
+  @GetMapping("/stats/page")
+  public void renderSecurityStatsPage(RoutingContext ctx) {
+    LOG.debug("Rendering security stats page");
+
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "安全统计");
+      data.put("currentUserId", getCurrentUserId(ctx));
+      data.put("currentUserRole", getCurrentUserRole(ctx));
+
+      String html = renderTemplate("security-stats.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Failed to render security stats page", e);
+      sendError(ctx, 500, "Failed to render security stats page: " + e.getMessage());
+    }
+  }
+
+  /**
+   * 渲染被锁定账户页面
+   */
+  @GetMapping("/locked-accounts/page")
+  public void renderLockedAccountsPage(RoutingContext ctx) {
+    LOG.debug("Rendering locked accounts page");
+
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "被锁定账户");
+      data.put("currentUserId", getCurrentUserId(ctx));
+      data.put("currentUserRole", getCurrentUserRole(ctx));
+
+      String html = renderTemplate("locked-accounts.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Failed to render locked accounts page", e);
+      sendError(ctx, 500, "Failed to render locked accounts page: " + e.getMessage());
+    }
+  }
+
+  /**
+   * 渲染IP黑名单页面
+   */
+  @GetMapping("/blacklist/page")
+  public void renderBlacklistPage(RoutingContext ctx) {
+    LOG.debug("Rendering IP blacklist page");
+
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "IP黑名单管理");
+      data.put("currentUserId", getCurrentUserId(ctx));
+      data.put("currentUserRole", getCurrentUserRole(ctx));
+
+      String html = renderTemplate("ip-blacklist.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Failed to render IP blacklist page", e);
+      sendError(ctx, 500, "Failed to render IP blacklist page: " + e.getMessage());
+    }
+  }
+
+  /**
+   * 获取IP黑名单列表
+   */
+  @GetMapping("/blacklist")
+  public void getBlacklist(RoutingContext ctx) {
+    LOG.debug("Getting IP blacklist");
+
+    try {
+      List<IpBlacklist> blacklist = loginSecurityService.getIpBlacklist();
+
+      JsonArray blacklistArray = new JsonArray();
+      for (IpBlacklist item : blacklist) {
+        JsonObject itemJson = new JsonObject()
+            .put("ipAddress", item.getIpAddress())
+            .put("reason", item.getReason())
+            .put("blockedBy", item.getBlockedBy())
+            .put("createdAt", item.getCreatedAt())
+            .put("updatedAt", item.getUpdatedAt())
+            .put("expiresAt", item.getExpiresAt())
+            .put("isPermanent", item.getIsPermanent())
+            .put("isExpired", item.isExpired());
+        blacklistArray.add(itemJson);
+      }
+
+      JsonObject response = new JsonObject()
+          .put("success", true)
+          .put("data", new JsonObject()
+              .put("blacklist", blacklistArray)
+              .put("total", blacklist.size()));
+
+      ctx.response()
+          .putHeader("content-type", "application/json")
+          .end(response.encode());
+
+    } catch (Exception e) {
+      LOG.error("Failed to get blacklist", e);
+      sendError(ctx, 500, "Failed to get blacklist: " + e.getMessage());
+    }
+  }
 
   /**
    * 获取登录安全统计
