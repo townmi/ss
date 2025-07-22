@@ -16,10 +16,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import io.vertx.core.json.JsonObject;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.sql.Timestamp;
 import java.util.Date;
 
@@ -32,7 +30,7 @@ import java.util.Date;
  */
 @Service("asyncDatabaseDataService")
 @Primary
-public class AsyncDatabaseDataServiceImpl implements DataService, TypedDataService {
+public class AsyncDatabaseDataServiceImpl implements TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDatabaseDataServiceImpl.class);
 
@@ -312,7 +310,6 @@ public class AsyncDatabaseDataServiceImpl implements DataService, TypedDataServi
       Map<String, Object> updateData = new HashMap<>(data);
       // 移除不应该更新的字段
       updateData.remove("id");
-      updateData.remove("created_at");
 
       // 构建 UPDATE SQL
       List<String> setClauses = new ArrayList<>();

@@ -291,25 +291,42 @@ public class UserPlugin {
    */
   @GetMapping("/page/users/")
   public void getUsersPage(RoutingContext ctx) {
+    LOG.info("Rendering users page...");
     try {
+      LOG.info("Getting all users from service...");
       List<Map<String, Object>> users = userService.getAllUsers();
+      LOG.info("Retrieved {} users from service", users.size());
 
       Map<String, Object> data = new HashMap<>();
       data.put("users", users);
       data.put("userCount", users.size());
       data.put("hasUsers", !users.isEmpty());
 
+      LOG.info("Rendering template with data: userCount={}, hasUsers={}", users.size(), !users.isEmpty());
       String html = renderTemplate("users.mustache", data);
+      LOG.info("Template rendered successfully, HTML length: {}", html.length());
 
       ctx.response()
           .putHeader("content-type", "text/html; charset=utf-8")
           .end(html);
+
+      LOG.info("Users page response sent successfully");
     } catch (Exception e) {
       LOG.error("Failed to render users page", e);
       ctx.response()
           .setStatusCode(500)
-          .end("Internal Server Error");
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end("<html><body><h1>Internal Server Error</h1><p>" + e.getMessage() + "</p></body></html>");
     }
+  }
+
+  /**
+   * 用户列表页面 - 别名路由
+   */
+  @GetMapping("/page/users/list")
+  public void getUsersListPage(RoutingContext ctx) {
+    // 委托给主要的用户列表页面处理
+    getUsersPage(ctx);
   }
 
   /**
@@ -323,7 +340,7 @@ public class UserPlugin {
       data.put("submitUrl", "/users");
       data.put("method", "POST");
 
-      String html = renderTemplate("create-user.html", data);
+      String html = renderTemplate("create-user.mustache", data);
 
       ctx.response()
           .putHeader("content-type", "text/html; charset=utf-8")
@@ -368,6 +385,38 @@ public class UserPlugin {
     }
   }
 
+  /**
+   * 编辑用户页面
+   */
+  @GetMapping("/page/users/:id/edit")
+  public void getEditUserPage(RoutingContext ctx) {
+    String userId = ctx.pathParam("id");
+
+    try {
+      Optional<Map<String, Object>> userOpt = userService.getUserById(userId);
+
+      if (userOpt.isPresent()) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("user", userOpt.get());
+
+        String html = renderTemplate("edit-user.mustache", data);
+
+        ctx.response()
+            .putHeader("content-type", "text/html; charset=utf-8")
+            .end(html);
+      } else {
+        ctx.response()
+            .setStatusCode(404)
+            .end("User not found");
+      }
+    } catch (Exception e) {
+      LOG.error("Failed to render edit user page", e);
+      ctx.response()
+          .setStatusCode(500)
+          .end("Internal Server Error");
+    }
+  }
+
   // 辅助方法
 
   private void sendError(RoutingContext ctx, int statusCode, String message) {
@@ -382,21 +431,30 @@ public class UserPlugin {
   }
 
   private String renderTemplate(String templateName, Map<String, Object> data) {
+    LOG.info("Rendering template: {}", templateName);
+    LOG.debug("Template data: {}", data);
+
     try (InputStream is = getClass().getResourceAsStream("/user-plugin/templates/" + templateName)) {
       if (is == null) {
+        LOG.error("Template not found: /user-plugin/templates/{}", templateName);
         throw new RuntimeException("Template not found: " + templateName);
       }
 
+      LOG.info("Template found, compiling...");
       Mustache mustache = mustacheFactory.compile(
           new InputStreamReader(is, StandardCharsets.UTF_8),
           templateName);
 
       StringWriter writer = new StringWriter();
+      LOG.info("Executing template...");
       mustache.execute(writer, data).flush();
-      return writer.toString();
+      String result = writer.toString();
+
+      LOG.info("Template executed successfully, result length: {}", result.length());
+      return result;
     } catch (Exception e) {
       LOG.error("Error rendering template: " + templateName, e);
-      throw new RuntimeException("Template rendering error", e);
+      throw new RuntimeException("Template rendering error: " + e.getMessage(), e);
     }
   }
 }

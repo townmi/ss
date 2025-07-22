@@ -212,7 +212,6 @@ public class SyncDatabaseDataServiceImpl implements DataService, TypedDataServic
       Map<String, Object> updateData = new HashMap<>(data);
       // 移除不应该更新的字段
       updateData.remove("id");
-      updateData.remove("created_at");
 
       // 构建 UPDATE SQL
       List<String> setClauses = new ArrayList<>();

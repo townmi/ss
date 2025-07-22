@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>创建新用户</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .breadcrumb {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb-inner {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .breadcrumb ul {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .breadcrumb li {
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb li:not(:last-child)::after {
+      content: '/';
+      margin: 0 10px;
+      color: #999;
+    }
+
+    .breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    .breadcrumb a:hover {
+      background-color: #f8f9fa;
+    }
+
+    .breadcrumb .current {
+      color: #6c757d;
+      font-weight: 500;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #f8f9fa;
+      padding: 20px;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .card-header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0;
+      color: #495057;
+    }
+
+    .card-body {
+      padding: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #495057;
+    }
+
+    .form-group .required::after {
+      content: ' *';
+      color: #dc3545;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #80bdff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .form-control.is-invalid {
+      border-color: #dc3545;
+    }
+
+    .invalid-feedback {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      font-size: 14px;
+      color: #dc3545;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-primary:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background-color: #545b62;
+    }
+
+    .alert {
+      padding: 16px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      border: 1px solid;
+    }
+
+    .alert-success {
+      color: #155724;
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+
+    .alert-error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 16px;
+      }
+
+      .card-body {
+        padding: 20px;
+      }
+
+      .form-actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 面包屑导航 -->
+  <nav class="breadcrumb">
+    <div class="breadcrumb-inner">
+      <ul>
+        <li><a href="/">首页</a></li>
+        <li><a href="/page/users/">用户管理</a></li>
+        <li><span class="current">创建新用户</span></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <h1>创建新用户</h1>
+      </div>
+      <div class="card-body">
+        <!-- 消息提示 -->
+        <div id="message" class="alert" style="display: none;"></div>
+
+        <!-- 表单 -->
+        <form id="createUserForm">
+          <div class="form-group">
+            <label for="name" class="required">姓名</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+            <div class="invalid-feedback" id="nameError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="email" class="required">邮箱</label>
+            <input type="email" id="email" name="email" class="form-control" required>
+            <div class="invalid-feedback" id="emailError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">电话</label>
+            <input type="tel" id="phone" name="phone" class="form-control">
+            <div class="invalid-feedback" id="phoneError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="department">部门</label>
+            <input type="text" id="department" name="department" class="form-control">
+            <div class="invalid-feedback" id="departmentError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="role">角色</label>
+            <select id="role" name="role" class="form-control">
+              <option value="user" selected>普通用户</option>
+              <option value="admin">管理员</option>
+            </select>
+            <div class="invalid-feedback" id="roleError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="status">状态</label>
+            <select id="status" name="status" class="form-control">
+              <option value="active" selected>激活</option>
+              <option value="inactive">停用</option>
+            </select>
+            <div class="invalid-feedback" id="statusError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="notes">备注</label>
+            <textarea id="notes" name="notes" class="form-control" rows="4"></textarea>
+            <div class="invalid-feedback" id="notesError"></div>
+          </div>
+
+          <div class="form-actions">
+            <a href="/page/users/" class="btn btn-secondary">取消</a>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              <span id="submitText">创建用户</span>
+              <div class="spinner" id="spinner" style="display: none; margin-left: 8px;"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('createUserForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const submitText = document.getElementById('submitText');
+      const spinner = document.getElementById('spinner');
+      const messageDiv = document.getElementById('message');
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // 清除之前的错误状态
+        clearErrors();
+        
+        // 获取表单数据
+        const formData = new FormData(form);
+        const userData = {};
+        for (let [key, value] of formData.entries()) {
+          userData[key] = value.trim();
+        }
+
+        // 基本验证
+        if (!validateForm(userData)) {
+          return;
+        }
+
+        // 显示加载状态
+        setLoading(true);
+
+        // 提交数据
+        fetch('/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(userData)
+        })
+        .then(response => response.json())
+        .then(data => {
+          setLoading(false);
+          
+          if (data.success) {
+            showMessage('用户创建成功！', 'success');
+            // 延迟跳转到用户列表
+            setTimeout(() => {
+              window.location.href = '/page/users/';
+            }, 1500);
+          } else {
+            showMessage(data.error || '创建失败，请重试', 'error');
+          }
+        })
+        .catch(error => {
+          setLoading(false);
+          console.error('Error:', error);
+          showMessage('网络错误，请重试', 'error');
+        });
+      });
+
+      function validateForm(data) {
+        let isValid = true;
+
+        if (!data.name) {
+          showFieldError('name', '姓名不能为空');
+          isValid = false;
+        }
+
+        if (!data.email) {
+          showFieldError('email', '邮箱不能为空');
+          isValid = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+          showFieldError('email', '请输入有效的邮箱地址');
+          isValid = false;
+        }
+
+        return isValid;
+      }
+
+      function showFieldError(fieldName, message) {
+        const field = document.getElementById(fieldName);
+        const errorDiv = document.getElementById(fieldName + 'Error');
+        
+        field.classList.add('is-invalid');
+        errorDiv.textContent = message;
+      }
+
+      function clearErrors() {
+        const invalidFields = document.querySelectorAll('.is-invalid');
+        const errorDivs = document.querySelectorAll('.invalid-feedback');
+        
+        invalidFields.forEach(field => field.classList.remove('is-invalid'));
+        errorDivs.forEach(div => div.textContent = '');
+      }
+
+      function setLoading(loading) {
+        submitBtn.disabled = loading;
+        spinner.style.display = loading ? 'inline-block' : 'none';
+        submitText.textContent = loading ? '创建中...' : '创建用户';
+      }
+
+      function showMessage(message, type) {
+        messageDiv.textContent = message;
+        messageDiv.className = 'alert alert-' + type;
+        messageDiv.style.display = 'block';
+        
+        // 滚动到顶部显示消息
+        messageDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  </script>
+</body>
+</html> 

@@ -6,7 +6,6 @@ import work.anyway.interfaces.auth.PermissionService;
 import work.anyway.interfaces.data.DataService;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 权限服务实现

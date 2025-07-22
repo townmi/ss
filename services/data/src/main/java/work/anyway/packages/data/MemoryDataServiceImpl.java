@@ -2,7 +2,6 @@ package work.anyway.packages.data;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import work.anyway.interfaces.data.*;
 
@@ -16,7 +15,7 @@ import java.util.stream.Collectors;
  * 用于开发和测试，数据存储在内存中
  */
 @Service("memoryDataService")
-public class MemoryDataServiceImpl implements DataService, TypedDataService {
+public class MemoryDataServiceImpl implements TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(MemoryDataServiceImpl.class);
 
@@ -28,52 +27,6 @@ public class MemoryDataServiceImpl implements DataService, TypedDataService {
 
   public MemoryDataServiceImpl() {
     LOG.info("Initializing MemoryDataServiceImpl with sample data");
-    initializeSampleData();
-  }
-
-  /**
-   * 初始化示例数据
-   */
-  private void initializeSampleData() {
-    // 初始化用户数据
-    Map<String, Object> user1 = new HashMap<>();
-    user1.put("name", "张三");
-    user1.put("email", "zhangsan@example.com");
-    user1.put("role", "admin");
-    save("users", user1);
-
-    Map<String, Object> user2 = new HashMap<>();
-    user2.put("name", "李四");
-    user2.put("email", "lisi@example.com");
-    user2.put("role", "user");
-    save("users", user2);
-
-    // 初始化产品数据
-    Map<String, Object> product1 = new HashMap<>();
-    product1.put("name", "笔记本电脑");
-    product1.put("price", 5999.00);
-    product1.put("category", "电子产品");
-    product1.put("stock", 50);
-    save("products", product1);
-
-    Map<String, Object> product2 = new HashMap<>();
-    product2.put("name", "无线鼠标");
-    product2.put("price", 99.00);
-    product2.put("category", "电脑配件");
-    product2.put("stock", 200);
-    save("products", product2);
-
-    // 初始化订单数据
-    Map<String, Object> order1 = new HashMap<>();
-    order1.put("orderNo", "ORD-2024-001");
-    order1.put("userId", "1");
-    order1.put("productId", "1");
-    order1.put("quantity", 1);
-    order1.put("totalAmount", 5999.00);
-    order1.put("status", "已完成");
-    save("orders", order1);
-
-    LOG.info("Sample data initialized: {} collections", collections.size());
   }
 
   @Override
@@ -93,11 +46,6 @@ public class MemoryDataServiceImpl implements DataService, TypedDataService {
     }
 
     String id = String.valueOf(dataCopy.get("id"));
-
-    // 添加时间戳
-    long now = System.currentTimeMillis();
-    dataCopy.put("createdAt", now);
-    dataCopy.put("updatedAt", now);
 
     // 保存数据
     collectionData.put(id, dataCopy);
@@ -160,9 +108,6 @@ public class MemoryDataServiceImpl implements DataService, TypedDataService {
 
     // 保持 ID 不变
     updatedData.put("id", id);
-
-    // 更新时间戳
-    updatedData.put("updatedAt", System.currentTimeMillis());
 
     collectionData.put(id, updatedData);
 
