@@ -1,5 +1,6 @@
 package work.anyway.interfaces.user;
 
+import lombok.*;
 import work.anyway.interfaces.data.Entity;
 import java.util.Date;
 
@@ -10,23 +11,23 @@ import java.util.Date;
  * @author 作者名
  * @since 1.0.0
  */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UserAccount extends Entity {
 
   private String userId;
   private AccountType accountType;
   private String identifier; // 邮箱地址、Google ID、微信 openid 等
   private String credentials; // 密码hash、token等（JSON格式存储）
+  @Builder.Default
   private Boolean verified = false;
+  @Builder.Default
   private Boolean primaryAccount = false; // 是否为主账户
   private Date lastLogin;
   private String registrationIp;
-
-  /**
-   * 默认构造函数
-   */
-  public UserAccount() {
-    super();
-  }
 
   /**
    * 构造函数
@@ -42,72 +43,8 @@ public class UserAccount extends Entity {
     this.accountType = accountType;
     this.identifier = identifier;
     this.credentials = credentials;
-  }
-
-  // Getters and Setters
-
-  public String getUserId() {
-    return userId;
-  }
-
-  public void setUserId(String userId) {
-    this.userId = userId;
-  }
-
-  public AccountType getAccountType() {
-    return accountType;
-  }
-
-  public void setAccountType(AccountType accountType) {
-    this.accountType = accountType;
-  }
-
-  public String getIdentifier() {
-    return identifier;
-  }
-
-  public void setIdentifier(String identifier) {
-    this.identifier = identifier;
-  }
-
-  public String getCredentials() {
-    return credentials;
-  }
-
-  public void setCredentials(String credentials) {
-    this.credentials = credentials;
-  }
-
-  public Boolean getVerified() {
-    return verified;
-  }
-
-  public void setVerified(Boolean verified) {
-    this.verified = verified;
-  }
-
-  public Boolean getPrimaryAccount() {
-    return primaryAccount;
-  }
-
-  public void setPrimaryAccount(Boolean primaryAccount) {
-    this.primaryAccount = primaryAccount;
-  }
-
-  public Date getLastLogin() {
-    return lastLogin;
-  }
-
-  public void setLastLogin(Date lastLogin) {
-    this.lastLogin = lastLogin;
-  }
-
-  public String getRegistrationIp() {
-    return registrationIp;
-  }
-
-  public void setRegistrationIp(String registrationIp) {
-    this.registrationIp = registrationIp;
+    this.verified = false;
+    this.primaryAccount = false;
   }
 
   // 便利方法
@@ -187,17 +124,4 @@ public class UserAccount extends Entity {
     return phone.substring(0, 3) + "****" + phone.substring(7);
   }
 
-  @Override
-  public String toString() {
-    return "UserAccount{" +
-        "id='" + getId() + '\'' +
-        ", userId='" + userId + '\'' +
-        ", accountType=" + accountType +
-        ", identifier='" + identifier + '\'' +
-        ", verified=" + verified +
-        ", primaryAccount=" + primaryAccount +
-        ", createdAt=" + getCreatedAt() +
-        ", updatedAt=" + getUpdatedAt() +
-        '}';
-  }
 }

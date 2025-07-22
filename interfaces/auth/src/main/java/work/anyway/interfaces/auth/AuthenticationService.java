@@ -14,20 +14,14 @@ public interface AuthenticationService {
   /**
    * 认证结果类
    */
+  @lombok.Data
+  @lombok.AllArgsConstructor(access = lombok.AccessLevel.PRIVATE)
   public static class AuthResult {
     private final boolean success;
     private final String userId;
-    private final String message;
     private final String accountId;
     private final String accountType;
-
-    private AuthResult(boolean success, String userId, String accountId, String accountType, String message) {
-      this.success = success;
-      this.userId = userId;
-      this.accountId = accountId;
-      this.accountType = accountType;
-      this.message = message;
-    }
+    private final String message;
 
     public static AuthResult success(String userId, String accountId, String accountType) {
       return new AuthResult(true, userId, accountId, accountType, "Authentication successful");
@@ -35,37 +29,6 @@ public interface AuthenticationService {
 
     public static AuthResult failure(String message) {
       return new AuthResult(false, null, null, null, message);
-    }
-
-    public boolean isSuccess() {
-      return success;
-    }
-
-    public String getUserId() {
-      return userId;
-    }
-
-    public String getAccountId() {
-      return accountId;
-    }
-
-    public String getAccountType() {
-      return accountType;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-
-    @Override
-    public String toString() {
-      return "AuthResult{" +
-          "success=" + success +
-          ", userId='" + userId + '\'' +
-          ", accountId='" + accountId + '\'' +
-          ", accountType='" + accountType + '\'' +
-          ", message='" + message + '\'' +
-          '}';
     }
   }
 

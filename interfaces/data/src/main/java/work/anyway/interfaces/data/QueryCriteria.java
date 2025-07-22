@@ -1,5 +1,6 @@
 package work.anyway.interfaces.data;
 
+import lombok.Getter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -12,6 +13,7 @@ import java.util.function.Predicate;
  * @author 作者名
  * @since 1.0.0
  */
+@Getter
 public class QueryCriteria<T> {
   private final Map<String, Object> conditions = new HashMap<>();
   private Predicate<T> customFilter;
@@ -163,39 +165,4 @@ public class QueryCriteria<T> {
     return this;
   }
 
-  /**
-   * 获取查询条件
-   * 
-   * @return 查询条件映射
-   */
-  public Map<String, Object> getConditions() {
-    return new HashMap<>(conditions);
-  }
-
-  /**
-   * 获取自定义过滤器
-   * 
-   * @return 自定义过滤器
-   */
-  public Predicate<T> getCustomFilter() {
-    return customFilter;
-  }
-
-  /**
-   * 获取排序字段
-   * 
-   * @return 排序字段
-   */
-  public String getOrderBy() {
-    return orderBy;
-  }
-
-  /**
-   * 是否升序排序
-   * 
-   * @return 是否升序
-   */
-  public boolean isAscending() {
-    return ascending;
-  }
 }

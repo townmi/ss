@@ -3,6 +3,9 @@ package work.anyway.host.interceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import work.anyway.annotations.Interceptor;
 import work.anyway.annotations.InterceptorComponent;
 
@@ -126,33 +129,12 @@ public class InterceptorManager {
   /**
    * 拦截器信息类
    */
+  @Data
+  @AllArgsConstructor
   public static class InterceptorInfo {
     private final Interceptor interceptor;
     private final String name;
     private final String description;
     private final int order;
-
-    public InterceptorInfo(Interceptor interceptor, String name, String description, int order) {
-      this.interceptor = interceptor;
-      this.name = name;
-      this.description = description;
-      this.order = order;
-    }
-
-    public Interceptor getInterceptor() {
-      return interceptor;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public String getDescription() {
-      return description;
-    }
-
-    public int getOrder() {
-      return order;
-    }
   }
 }

@@ -1,5 +1,6 @@
 package work.anyway.interfaces.user;
 
+import lombok.*;
 import work.anyway.interfaces.data.Entity;
 
 import java.util.Date;
@@ -12,12 +13,19 @@ import java.util.List;
  * @author 作者名
  * @since 1.0.0
  */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User extends Entity {
 
   private String name;
   private String phone;
   private String department;
+  @Builder.Default
   private String role = "user";
+  @Builder.Default
   private String status = "active";
   private String avatarUrl;
   private String notes;
@@ -25,13 +33,6 @@ public class User extends Entity {
 
   // 关联的账户列表（不持久化到数据库）
   private transient List<UserAccount> accounts;
-
-  /**
-   * 默认构造函数
-   */
-  public User() {
-    super();
-  }
 
   /**
    * 构造函数
@@ -45,80 +46,8 @@ public class User extends Entity {
     this.name = name;
     this.phone = phone;
     this.department = department;
-  }
-
-  // Getters and Setters
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getPhone() {
-    return phone;
-  }
-
-  public void setPhone(String phone) {
-    this.phone = phone;
-  }
-
-  public String getDepartment() {
-    return department;
-  }
-
-  public void setDepartment(String department) {
-    this.department = department;
-  }
-
-  public String getRole() {
-    return role;
-  }
-
-  public void setRole(String role) {
-    this.role = role;
-  }
-
-  public String getStatus() {
-    return status;
-  }
-
-  public void setStatus(String status) {
-    this.status = status;
-  }
-
-  public String getAvatarUrl() {
-    return avatarUrl;
-  }
-
-  public void setAvatarUrl(String avatarUrl) {
-    this.avatarUrl = avatarUrl;
-  }
-
-  public String getNotes() {
-    return notes;
-  }
-
-  public void setNotes(String notes) {
-    this.notes = notes;
-  }
-
-  public Date getLastLogin() {
-    return lastLogin;
-  }
-
-  public void setLastLogin(Date lastLogin) {
-    this.lastLogin = lastLogin;
-  }
-
-  public List<UserAccount> getAccounts() {
-    return accounts;
-  }
-
-  public void setAccounts(List<UserAccount> accounts) {
-    this.accounts = accounts;
+    this.role = "user";
+    this.status = "active";
   }
 
   // 便利方法
@@ -171,17 +100,4 @@ public class User extends Entity {
         .orElse(null);
   }
 
-  @Override
-  public String toString() {
-    return "User{" +
-        "id='" + getId() + '\'' +
-        ", name='" + name + '\'' +
-        ", phone='" + phone + '\'' +
-        ", department='" + department + '\'' +
-        ", role='" + role + '\'' +
-        ", status='" + status + '\'' +
-        ", createdAt=" + getCreatedAt() +
-        ", updatedAt=" + getUpdatedAt() +
-        '}';
-  }
 }

@@ -15,6 +15,10 @@
   <packaging>jar</packaging>
 
   <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+    </dependency>
     <!-- Spring Core for @Component -->
     <dependency>
       <groupId>org.springframework</groupId>

@@ -1,5 +1,6 @@
 package work.anyway.interfaces.auth;
 
+import lombok.*;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -10,23 +11,26 @@ import java.util.Date;
  * @author 作者名
  * @since 1.0.0
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class LoginAttempt {
 
   private String id; // 实体ID
   private String identifier; // 登录标识符
   private String identifierType; // 标识符类型
   private String clientIp; // 客户端IP
-  private Integer attemptCount; // 尝试次数
+  @Builder.Default
+  private Integer attemptCount = 1; // 尝试次数
   private LocalDateTime firstAttemptAt; // 首次尝试时间
   private LocalDateTime lastAttemptAt; // 最后尝试时间
   private LocalDateTime lockedUntil; // 锁定到什么时间
-  private String lockLevel; // 锁定级别
+  @Builder.Default
+  private String lockLevel = "none"; // 锁定级别
   private String lockReason; // 锁定原因
   private Date createdAt; // 创建时间
   private Date updatedAt; // 更新时间
-
-  public LoginAttempt() {
-  }
 
   public LoginAttempt(String identifier, String identifierType, String clientIp) {
     this.identifier = identifier;
@@ -36,103 +40,6 @@ public class LoginAttempt {
     this.firstAttemptAt = LocalDateTime.now();
     this.lastAttemptAt = LocalDateTime.now();
     this.lockLevel = "none";
-  }
-
-  // Getters and Setters
-  public String getId() {
-    return id;
-  }
-
-  public void setId(String id) {
-    this.id = id;
-  }
-
-  public String getIdentifier() {
-    return identifier;
-  }
-
-  public void setIdentifier(String identifier) {
-    this.identifier = identifier;
-  }
-
-  public String getIdentifierType() {
-    return identifierType;
-  }
-
-  public void setIdentifierType(String identifierType) {
-    this.identifierType = identifierType;
-  }
-
-  public String getClientIp() {
-    return clientIp;
-  }
-
-  public void setClientIp(String clientIp) {
-    this.clientIp = clientIp;
-  }
-
-  public Integer getAttemptCount() {
-    return attemptCount;
-  }
-
-  public void setAttemptCount(Integer attemptCount) {
-    this.attemptCount = attemptCount;
-  }
-
-  public LocalDateTime getFirstAttemptAt() {
-    return firstAttemptAt;
-  }
-
-  public void setFirstAttemptAt(LocalDateTime firstAttemptAt) {
-    this.firstAttemptAt = firstAttemptAt;
-  }
-
-  public LocalDateTime getLastAttemptAt() {
-    return lastAttemptAt;
-  }
-
-  public void setLastAttemptAt(LocalDateTime lastAttemptAt) {
-    this.lastAttemptAt = lastAttemptAt;
-  }
-
-  public LocalDateTime getLockedUntil() {
-    return lockedUntil;
-  }
-
-  public void setLockedUntil(LocalDateTime lockedUntil) {
-    this.lockedUntil = lockedUntil;
-  }
-
-  public String getLockLevel() {
-    return lockLevel;
-  }
-
-  public void setLockLevel(String lockLevel) {
-    this.lockLevel = lockLevel;
-  }
-
-  public String getLockReason() {
-    return lockReason;
-  }
-
-  public void setLockReason(String lockReason) {
-    this.lockReason = lockReason;
-  }
-
-  public Date getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(Date createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public Date getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(Date updatedAt) {
-    this.updatedAt = updatedAt;
   }
 
   /**

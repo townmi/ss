@@ -1,5 +1,9 @@
 package work.anyway.interfaces.data;
 
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,21 +14,29 @@ import java.util.Map;
  * @author 作者名
  * @since 1.0.0
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class QueryOptions {
-  
+
+  @Builder.Default
   private int page = 1;
+  @Builder.Default
   private int pageSize = 20;
   private String sortBy;
+  @Builder.Default
   private boolean ascending = true;
+  @Builder.Default
   private Map<String, Object> filters = new HashMap<>();
-  
+
   /**
    * 创建默认查询选项
    */
   public static QueryOptions create() {
     return new QueryOptions();
   }
-  
+
   /**
    * 设置页码
    * 
@@ -35,7 +47,7 @@ public class QueryOptions {
     this.page = Math.max(1, page);
     return this;
   }
-  
+
   /**
    * 设置每页大小
    * 
@@ -46,7 +58,7 @@ public class QueryOptions {
     this.pageSize = Math.max(1, Math.min(100, pageSize)); // 限制在1-100之间
     return this;
   }
-  
+
   /**
    * 设置排序字段
    * 
@@ -57,7 +69,7 @@ public class QueryOptions {
     this.sortBy = sortBy;
     return this;
   }
-  
+
   /**
    * 设置升序排序
    * 
@@ -67,7 +79,7 @@ public class QueryOptions {
     this.ascending = true;
     return this;
   }
-  
+
   /**
    * 设置降序排序
    * 
@@ -77,11 +89,11 @@ public class QueryOptions {
     this.ascending = false;
     return this;
   }
-  
+
   /**
    * 添加过滤条件
    * 
-   * @param key 字段名
+   * @param key   字段名
    * @param value 字段值
    * @return 当前对象，支持链式调用
    */
@@ -89,7 +101,7 @@ public class QueryOptions {
     this.filters.put(key, value);
     return this;
   }
-  
+
   /**
    * 添加多个过滤条件
    * 
@@ -100,29 +112,13 @@ public class QueryOptions {
     this.filters.putAll(filters);
     return this;
   }
-  
-  // Getters
-  public int getPage() {
-    return page;
-  }
-  
-  public int getPageSize() {
-    return pageSize;
-  }
-  
+
+  /**
+   * 计算偏移量
+   * 
+   * @return 查询偏移量
+   */
   public int getOffset() {
     return (page - 1) * pageSize;
   }
-  
-  public String getSortBy() {
-    return sortBy;
-  }
-  
-  public boolean isAscending() {
-    return ascending;
-  }
-  
-  public Map<String, Object> getFilters() {
-    return new HashMap<>(filters);
-  }
-} 
+}
