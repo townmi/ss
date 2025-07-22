@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>权限管理 - {{pluginName}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .page-header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .breadcrumb {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .permission-category {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .permission-category h3 {
+            color: #667eea;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .permission-list {
+            list-style: none;
+        }
+        
+        .permission-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .permission-item:last-child {
+            border-bottom: none;
+        }
+        
+        .permission-name {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .permission-description {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        .permission-code {
+            font-family: 'Courier New', monospace;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85rem;
+            color: #e83e8c;
+        }
+        
+        .user-search {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .user-search h2 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .form-group {
+            flex: 1;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+        
+        .user-permissions {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+        
+        .user-permissions.active {
+            display: block;
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .user-details h3 {
+            color: #333;
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+        
+        .user-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .permission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .permission-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .permission-checkbox:hover {
+            background-color: #f8f9ff;
+            border-color: #667eea;
+        }
+        
+        .permission-checkbox input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .permission-checkbox label {
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        .actions {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .permission-stats {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>
+                <span>🔑</span>
+                <span>权限管理</span>
+            </h1>
+            <div class="breadcrumb">
+                <a href="/auth/">认证管理</a> / 权限管理
+            </div>
+        </div>
+        
+        <div class="permissions-grid">
+            <div class="permission-category">
+                <h3>
+                    <span>👤</span>
+                    <span>用户权限</span>
+                </h3>
+                <ul class="permission-list">
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">创建用户</div>
+                            <div class="permission-description">允许创建新用户账户</div>
+                        </div>
+                        <span class="permission-code">user.create</span>
+                    </li>
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">查看用户</div>
+                            <div class="permission-description">查看用户列表和详情</div>
+                        </div>
+                        <span class="permission-code">user.read</span>
+                    </li>
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">更新用户</div>
+                            <div class="permission-description">修改用户信息</div>
+                        </div>
+                        <span class="permission-code">user.update</span>
+                    </li>
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">删除用户</div>
+                            <div class="permission-description">删除用户账户</div>
+                        </div>
+                        <span class="permission-code">user.delete</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="permission-category">
+                <h3>
+                    <span>⚙️</span>
+                    <span>系统权限</span>
+                </h3>
+                <ul class="permission-list">
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">系统配置</div>
+                            <div class="permission-description">修改系统配置参数</div>
+                        </div>
+                        <span class="permission-code">system.config</span>
+                    </li>
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">系统监控</div>
+                            <div class="permission-description">查看系统运行状态</div>
+                        </div>
+                        <span class="permission-code">system.monitor</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="permission-category">
+                <h3>
+                    <span>👨‍💼</span>
+                    <span>管理权限</span>
+                </h3>
+                <ul class="permission-list">
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">访问管理功能</div>
+                            <div class="permission-description">进入管理后台</div>
+                        </div>
+                        <span class="permission-code">admin.access</span>
+                    </li>
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">管理系统</div>
+                            <div class="permission-description">执行高级管理操作</div>
+                        </div>
+                        <span class="permission-code">admin.manage</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="permission-category">
+                <h3>
+                    <span>📊</span>
+                    <span>报表权限</span>
+                </h3>
+                <ul class="permission-list">
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">查看报表</div>
+                            <div class="permission-description">查看各类统计报表</div>
+                        </div>
+                        <span class="permission-code">report.view</span>
+                    </li>
+                    <li class="permission-item">
+                        <div>
+                            <div class="permission-name">导出报表</div>
+                            <div class="permission-description">导出报表数据</div>
+                        </div>
+                        <span class="permission-code">report.export</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="user-search">
+            <h2>用户权限分配</h2>
+            <form class="search-form" onsubmit="searchUser(event)">
+                <div class="form-group">
+                    <label>用户ID或邮箱</label>
+                    <input type="text" id="userIdentifier" placeholder="输入用户ID或邮箱地址" required>
+                </div>
+                <button type="submit" class="btn btn-primary">查询用户权限</button>
+            </form>
+        </div>
+        
+        <div id="userPermissions" class="user-permissions">
+            <div class="user-info">
+                <div class="user-details">
+                    <h3 id="userName">-</h3>
+                    <div class="user-meta">
+                        <span>ID: <strong id="userId">-</strong></span>
+                        <span>邮箱: <strong id="userEmail">-</strong></span>
+                        <span>角色: <strong id="userRole">-</strong></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="permission-grid" id="permissionGrid">
+                <!-- 权限复选框将通过JavaScript动态生成 -->
+            </div>
+            
+            <div class="actions">
+                <div class="permission-stats">
+                    已分配 <strong id="grantedCount">0</strong> / <strong id="totalCount">0</strong> 个权限
+                </div>
+                <div>
+                    <button class="btn" onclick="cancelEdit()">取消</button>
+                    <button class="btn btn-primary" onclick="savePermissions()">保存权限</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentUserId = null;
+        let allPermissions = [
+            { code: 'user.create', name: '创建用户', category: 'user' },
+            { code: 'user.read', name: '查看用户', category: 'user' },
+            { code: 'user.update', name: '更新用户', category: 'user' },
+            { code: 'user.delete', name: '删除用户', category: 'user' },
+            { code: 'admin.access', name: '访问管理功能', category: 'admin' },
+            { code: 'admin.manage', name: '管理系统', category: 'admin' },
+            { code: 'system.config', name: '系统配置', category: 'system' },
+            { code: 'system.monitor', name: '系统监控', category: 'system' },
+            { code: 'report.view', name: '查看报表', category: 'report' },
+            { code: 'report.export', name: '导出报表', category: 'report' }
+        ];
+        
+        function searchUser(event) {
+            event.preventDefault();
+            const identifier = document.getElementById('userIdentifier').value;
+            
+            // 这里应该调用API获取用户信息和权限
+            // 模拟数据
+            currentUserId = identifier;
+            document.getElementById('userId').textContent = identifier;
+            document.getElementById('userName').textContent = '示例用户';
+            document.getElementById('userEmail').textContent = identifier.includes('@') ? identifier : identifier + '@example.com';
+            document.getElementById('userRole').textContent = 'user';
+            
+            // 生成权限复选框
+            generatePermissionCheckboxes([]);
+            
+            // 显示权限面板
+            document.getElementById('userPermissions').classList.add('active');
+        }
+        
+        function generatePermissionCheckboxes(userPermissions) {
+            const grid = document.getElementById('permissionGrid');
+            grid.innerHTML = '';
+            
+            allPermissions.forEach(perm => {
+                const div = document.createElement('div');
+                div.className = 'permission-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = perm.code;
+                checkbox.value = perm.code;
+                checkbox.checked = userPermissions.includes(perm.code);
+                checkbox.onchange = updatePermissionStats;
+                
+                const label = document.createElement('label');
+                label.htmlFor = perm.code;
+                label.textContent = perm.name;
+                
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                grid.appendChild(div);
+            });
+            
+            updatePermissionStats();
+        }
+        
+        function updatePermissionStats() {
+            const checkboxes = document.querySelectorAll('#permissionGrid input[type="checkbox"]');
+            const checked = document.querySelectorAll('#permissionGrid input[type="checkbox"]:checked');
+            document.getElementById('grantedCount').textContent = checked.length;
+            document.getElementById('totalCount').textContent = checkboxes.length;
+        }
+        
+        function cancelEdit() {
+            document.getElementById('userPermissions').classList.remove('active');
+            document.getElementById('userIdentifier').value = '';
+        }
+        
+        function savePermissions() {
+            const checked = document.querySelectorAll('#permissionGrid input[type="checkbox"]:checked');
+            const permissions = Array.from(checked).map(cb => cb.value);
+            
+            console.log('Saving permissions for user:', currentUserId);
+            console.log('Permissions:', permissions);
+            
+            // 这里应该调用API保存权限
+            alert('权限已保存！');
+        }
+    </script>
+</body>
+</html> 

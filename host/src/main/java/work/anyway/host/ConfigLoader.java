@@ -21,11 +21,12 @@ public class ConfigLoader {
 
   // 可配置的系统属性前缀
   private static final Set<String> SYSTEM_PROPERTY_PREFIXES = new HashSet<>(Arrays.asList(
-      "http.", "plugins.", "vertx.", "service.", "datasource.", "spring."));
+      "http.", "plugins.", "vertx.", "service.", "datasource.", "spring.", "login."));
 
   static {
     loadProperties();
     propagateDataSourceConfig();
+    propagateLoginSecurityConfig();
   }
 
   private static void loadProperties() {
@@ -118,6 +119,25 @@ public class ConfigLoader {
       }
     });
     LOG.info("Propagated {} datasource configuration(s) to system properties", count[0]);
+  }
+
+  /**
+   * 将登录安全配置传播到系统属性
+   * 这样 LoginSecurityConfig 就可以读取到这些配置
+   */
+  private static void propagateLoginSecurityConfig() {
+    final int[] count = { 0 };
+    properties.forEach((key, value) -> {
+      String keyStr = key.toString();
+      if (keyStr.startsWith("login.security.") ||
+          keyStr.startsWith("login.logs.") ||
+          keyStr.startsWith("login.attempts.")) {
+        System.setProperty(keyStr, value.toString());
+        LOG.info("  Setting login security property: {} = {}", keyStr, value.toString());
+        count[0]++;
+      }
+    });
+    LOG.info("Propagated {} login security configuration(s) to system properties", count[0]);
   }
 
   /**

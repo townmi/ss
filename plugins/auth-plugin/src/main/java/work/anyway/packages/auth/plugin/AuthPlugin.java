@@ -13,6 +13,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import work.anyway.annotations.*;
 import work.anyway.interfaces.auth.PermissionService;
 import work.anyway.interfaces.auth.SecurityService;
+import work.anyway.interfaces.auth.LoginSecurityService;
+import work.anyway.interfaces.auth.LoginLogService;
+import work.anyway.interfaces.auth.LoginAttemptResult;
+import work.anyway.interfaces.auth.LoginAttempt;
+import work.anyway.interfaces.auth.LoginLog;
 import work.anyway.interfaces.cache.CacheService;
 import work.anyway.interfaces.user.User;
 import work.anyway.interfaces.user.UserService;
@@ -27,11 +32,20 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
- * 权限管理插件
+ * 认证管理插件
+ * 
+ * 提供完整的用户认证和权限管理功能：
+ * - 用户认证：登录、注册、登出、令牌管理
+ * - 权限管理：权限分配、权限检查
+ * - 安全功能：密码重置、邮箱验证、登录保护
+ * 
+ * @author 作者名
+ * @since 1.0.0
  */
-@Plugin(name = "Auth Plugin", version = "1.0.0", description = "管理用户权限，控制系统访问权限", icon = "🔐", mainPagePath = "/page/auth/")
+@Plugin(name = "Auth Plugin", version = "1.0.0", description = "管理用户认证和权限，提供完整的身份验证和访问控制功能", icon = "🔐", mainPagePath = "/auth/")
 @Controller
-@RequestMapping("/")
+@RequestMapping("/auth")
+@Intercepted({ "SystemRequestLog" }) // 插件级别的基础日志记录
 public class AuthPlugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuthPlugin.class);
@@ -54,6 +68,12 @@ public class AuthPlugin {
   @Autowired
   private SecurityService securityService;
 
+  @Autowired(required = false)
+  private LoginSecurityService loginSecurityService;
+
+  @Autowired(required = false)
+  private LoginLogService loginLogService;
+
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
 
@@ -69,7 +89,7 @@ public class AuthPlugin {
   /**
    * 用户注册
    */
-  @PostMapping("/api/auth/register")
+  @PostMapping("/register")
   public void registerUser(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("User registration attempt");
@@ -229,7 +249,7 @@ public class AuthPlugin {
   /**
    * 用户登录
    */
-  @PostMapping("/api/auth/login")
+  @PostMapping("/login")
   public void loginUser(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("User login attempt");
@@ -255,22 +275,55 @@ public class AuthPlugin {
 
       // 数据清理
       email = securityService.sanitizeEmail(email);
+      String clientIp = ctx.request().remoteAddress().host();
 
-      // 检查登录失败次数限制
-      String loginAttemptsKey = "login_attempts:" + email;
-      Object attemptsObj = cacheService.get(loginAttemptsKey);
-      long attempts = (attemptsObj instanceof Long) ? (Long) attemptsObj : 0;
+      LOG.info("=== Starting email login authentication for {} ===", email);
+      LOG.info("LoginSecurityService status: {}", loginSecurityService != null ? "Available" : "Not available");
+      LOG.info("LoginLogService status: {}", loginLogService != null ? "Available" : "Not available");
 
-      if (attempts >= 5) {
-        sendError(ctx, 429, "Too many login attempts. Please try again later");
-        return;
+      // Step 1: 安全检查 - 使用新的 LoginSecurityService
+      if (loginSecurityService != null) {
+        LoginAttemptResult securityCheck = loginSecurityService.checkLoginAttempt(email, clientIp);
+        LOG.info("Step 2: Security check result: {}", securityCheck);
+
+        if (!securityCheck.isAllowed()) {
+          // 记录被阻止的登录尝试
+          if (loginLogService != null) {
+            recordBlockedLoginAttempt(email, clientIp, securityCheck.getReason());
+          }
+
+          JsonObject errorResponse = new JsonObject()
+              .put("success", false)
+              .put("error", securityCheck.getReason())
+              .put("remainingAttempts", securityCheck.getRemainingAttempts())
+              .put("waitSeconds", securityCheck.getWaitSeconds());
+
+          if (securityCheck.getLockUntil() != null) {
+            errorResponse.put("lockUntil", securityCheck.getLockUntil().toString());
+          }
+
+          ctx.response()
+              .setStatusCode(429)
+              .putHeader("content-type", "application/json")
+              .end(errorResponse.encode());
+          return;
+        }
+      } else {
+        // Fallback to old cache-based logic if LoginSecurityService is not available
+        String loginAttemptsKey = "login_attempts:" + email;
+        Object attemptsObj = cacheService.get(loginAttemptsKey);
+        long attempts = (attemptsObj instanceof Long) ? (Long) attemptsObj : 0;
+
+        if (attempts >= 5) {
+          sendError(ctx, 429, "Too many login attempts. Please try again later");
+          return;
+        }
       }
 
-      // 验证用户凭证
+      // Step 2: 验证用户凭证
       Optional<User> userOpt = userService.findUserByEmail(email);
       if (userOpt.isEmpty()) {
-        // 记录失败次数
-        cacheService.increment(loginAttemptsKey, 1, 900); // 15分钟
+        recordFailedLoginAttempt(email, clientIp, "User not found");
         sendError(ctx, 401, "Invalid email or password");
         return;
       }
@@ -280,7 +333,7 @@ public class AuthPlugin {
       // 获取邮箱账户来验证密码
       Optional<UserAccount> emailAccountOpt = accountService.findAccount(email, AccountType.EMAIL);
       if (emailAccountOpt.isEmpty()) {
-        cacheService.increment(loginAttemptsKey, 1, 900);
+        recordFailedLoginAttempt(email, clientIp, "Email account not found");
         sendError(ctx, 401, "Invalid email or password");
         return;
       }
@@ -289,8 +342,7 @@ public class AuthPlugin {
       String storedPassword = emailAccount.getCredentials();
 
       if (!securityService.verifyPassword(password, storedPassword)) {
-        // 记录失败次数
-        cacheService.increment(loginAttemptsKey, 1, 900); // 15分钟
+        recordFailedLoginAttempt(email, clientIp, "Invalid password");
         LOG.warn("Login failed for email: {}", email);
         sendError(ctx, 401, "Invalid email or password");
         return;
@@ -298,15 +350,27 @@ public class AuthPlugin {
 
       // 检查用户状态
       if (!user.isActive()) {
+        recordFailedLoginAttempt(email, clientIp, "Account not active");
         sendError(ctx, 403, "Account is not active");
         return;
       }
 
-      // 登录成功，清除失败计数
-      cacheService.remove(loginAttemptsKey);
-
+      // Step 3: 登录成功处理
       String userId = user.getId();
       String userRole = user.getRole();
+
+      // 记录成功登录
+      if (loginLogService != null) {
+        recordSuccessfulLoginAttempt(email, clientIp, "Email login successful");
+      }
+
+      // 重置失败计数（使用新服务或旧缓存）
+      if (loginSecurityService != null) {
+        loginSecurityService.clearFailedAttempts(email, clientIp);
+      } else {
+        String loginAttemptsKey = "login_attempts:" + email;
+        cacheService.remove(loginAttemptsKey);
+      }
 
       // 生成新的访问令牌
       String accessToken = jwtTokenUtil.generateAccessToken(userId, email, userRole);
@@ -317,7 +381,7 @@ public class AuthPlugin {
 
       // 记录登录信息
       cacheService.put("last_login:" + userId, System.currentTimeMillis(), 86400); // 24小时
-      cacheService.put("login_ip:" + userId, ctx.request().remoteAddress().host(), 86400);
+      cacheService.put("login_ip:" + userId, clientIp, 86400);
 
       LOG.info("User logged in successfully: {} (ID: {})", email, userId);
 
@@ -355,9 +419,77 @@ public class AuthPlugin {
   }
 
   /**
+   * 记录失败的登录尝试
+   */
+  private void recordFailedLoginAttempt(String identifier, String clientIp, String reason) {
+    try {
+      // 使用新的登录安全服务
+      if (loginSecurityService != null) {
+        loginSecurityService.recordFailedAttempt(identifier, "email", clientIp, reason);
+      } else {
+        // Fallback to old cache-based logic
+        String loginAttemptsKey = "login_attempts:" + identifier;
+        cacheService.increment(loginAttemptsKey, 1, 900); // 15分钟
+      }
+
+      // 记录登录日志
+      if (loginLogService != null) {
+        LoginLog failedLog = createLoginLog(identifier, "email", clientIp, "failed", reason);
+        loginLogService.recordFailedLogin(failedLog);
+      }
+    } catch (Exception e) {
+      LOG.error("Failed to record login attempt", e);
+    }
+  }
+
+  /**
+   * 记录成功的登录尝试
+   */
+  private void recordSuccessfulLoginAttempt(String identifier, String clientIp, String reason) {
+    try {
+      if (loginLogService != null) {
+        LoginLog successLog = createLoginLog(identifier, "email", clientIp, "success", reason);
+        loginLogService.recordSuccessfulLogin(successLog);
+      }
+    } catch (Exception e) {
+      LOG.error("Failed to record successful login", e);
+    }
+  }
+
+  /**
+   * 记录被阻止的登录尝试
+   */
+  private void recordBlockedLoginAttempt(String identifier, String clientIp, String reason) {
+    try {
+      if (loginLogService != null) {
+        LoginLog blockedLog = createLoginLog(identifier, "email", clientIp, "blocked", reason);
+        loginLogService.recordBlockedLogin(blockedLog);
+      }
+    } catch (Exception e) {
+      LOG.error("Failed to record blocked login", e);
+    }
+  }
+
+  /**
+   * 创建登录日志对象
+   */
+  private LoginLog createLoginLog(String identifier, String identifierType, String clientIp, String status,
+      String reason) {
+    LoginLog loginLog = new LoginLog();
+    loginLog.setIdentifier(identifier);
+    loginLog.setIdentifierType(identifierType);
+    loginLog.setClientIp(clientIp);
+    loginLog.setLoginStatus(status);
+    loginLog.setFailureReason(reason);
+    loginLog.setUserAgent("Unknown"); // 可以从request header获取
+    loginLog.setRiskScore(0); // 可以调用风险评估服务
+    return loginLog;
+  }
+
+  /**
    * 用户登出
    */
-  @PostMapping("/api/auth/logout")
+  @PostMapping("/logout")
   public void logoutUser(RoutingContext ctx) {
     String authHeader = ctx.request().getHeader("Authorization");
     LOG.debug("User logout attempt");
@@ -411,7 +543,7 @@ public class AuthPlugin {
   /**
    * 刷新访问令牌
    */
-  @PostMapping("/api/auth/refresh")
+  @PostMapping("/refresh")
   public void refreshToken(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Token refresh attempt");
@@ -474,7 +606,7 @@ public class AuthPlugin {
   /**
    * 获取当前用户信息
    */
-  @GetMapping("/api/auth/profile")
+  @GetMapping("/profile")
   public void getCurrentUser(RoutingContext ctx) {
     String authHeader = ctx.request().getHeader("Authorization");
 
@@ -541,7 +673,7 @@ public class AuthPlugin {
   /**
    * 发送邮箱验证码
    */
-  @PostMapping("/api/auth/send-verification")
+  @PostMapping("/send-verification")
   public void sendEmailVerification(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Send email verification request");
@@ -612,7 +744,7 @@ public class AuthPlugin {
   /**
    * 验证邮箱验证码
    */
-  @PostMapping("/api/auth/verify-email")
+  @PostMapping("/verify-email")
   public void verifyEmail(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Email verification request");
@@ -678,7 +810,7 @@ public class AuthPlugin {
   /**
    * 发送密码重置邮件
    */
-  @PostMapping("/api/auth/forgot-password")
+  @PostMapping("/forgot-password")
   public void forgotPassword(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Forgot password request");
@@ -747,7 +879,7 @@ public class AuthPlugin {
   /**
    * 重置密码
    */
-  @PostMapping("/api/auth/reset-password")
+  @PostMapping("/reset-password")
   public void resetPassword(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Reset password request");
@@ -836,7 +968,7 @@ public class AuthPlugin {
   /**
    * 登录页面
    */
-  @GetMapping("/page/auth/login")
+  @GetMapping("/login")
   public void getLoginPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();
@@ -859,7 +991,7 @@ public class AuthPlugin {
   /**
    * 注册页面
    */
-  @GetMapping("/page/auth/register")
+  @GetMapping("/register")
   public void getRegisterPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();
@@ -881,7 +1013,7 @@ public class AuthPlugin {
   /**
    * 忘记密码页面
    */
-  @GetMapping("/page/auth/forgot-password")
+  @GetMapping("/forgot-password")
   public void getForgotPasswordPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();
@@ -904,7 +1036,7 @@ public class AuthPlugin {
   /**
    * 邮箱验证页面（可选）
    */
-  @GetMapping("/page/auth/verify-email")
+  @GetMapping("/verify-email")
   public void getVerifyEmailPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();
@@ -935,7 +1067,7 @@ public class AuthPlugin {
   /**
    * 获取用户权限
    */
-  @GetMapping("/auth/permissions/:userId")
+  @GetMapping("/permissions/:userId")
   public void getUserPermissions(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
     LOG.debug("Getting permissions for user: {}", userId);
@@ -960,7 +1092,7 @@ public class AuthPlugin {
   /**
    * 授予权限
    */
-  @PostMapping("/auth/permissions/:userId")
+  @PostMapping("/permissions/:userId")
   public void grantPermission(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
     JsonObject body = ctx.getBodyAsJson();
@@ -993,7 +1125,7 @@ public class AuthPlugin {
   /**
    * 撤销权限
    */
-  @RequestMapping(value = "/auth/permissions/:userId/:permission", method = "DELETE")
+  @RequestMapping(value = "/permissions/:userId/:permission", method = "DELETE")
   public void revokePermission(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
     String permission = ctx.pathParam("permission");
@@ -1019,7 +1151,7 @@ public class AuthPlugin {
   /**
    * 检查权限
    */
-  @GetMapping("/auth/check/:userId/:permission")
+  @GetMapping("/check/:userId/:permission")
   public void checkPermission(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
     String permission = ctx.pathParam("permission");
@@ -1045,7 +1177,7 @@ public class AuthPlugin {
   /**
    * 批量授予权限
    */
-  @PostMapping("/auth/permissions/:userId/batch")
+  @PostMapping("/permissions/:userId/batch")
   public void grantPermissionsBatch(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
     JsonObject body = ctx.getBodyAsJson();
@@ -1085,7 +1217,7 @@ public class AuthPlugin {
   /**
    * 获取所有可用权限
    */
-  @GetMapping("/auth/permissions/available")
+  @GetMapping("/permissions/available")
   public void getAvailablePermissions(RoutingContext ctx) {
     JsonObject response = new JsonObject()
         .put("success", true)
@@ -1101,31 +1233,79 @@ public class AuthPlugin {
   /**
    * 权限管理主页
    */
-  @GetMapping("/page/auth/")
+  @GetMapping("/")
   public void getIndexPage(RoutingContext ctx) {
     try {
+      // 获取统计数据
       Map<String, Object> data = new HashMap<>();
       data.put("pluginName", "Auth Plugin");
       data.put("pluginVersion", "1.0.0");
-      data.put("availablePermissions", AVAILABLE_PERMISSIONS);
 
-      String html = renderTemplate("index.mustache", data);
+      // 获取统计信息（如果服务可用）
+      if (loginLogService != null) {
+        // 今日登录次数
+        Map<String, Long> todayStats = loginLogService.getLoginStatistics(24, null);
+        data.put("todayLogins", todayStats.getOrDefault("total", 0L));
+
+        // 高风险登录
+        List<LoginLog> highRiskLogins = loginLogService.getHighRiskLogins(24, 70);
+        data.put("highRiskLogins", highRiskLogins.size());
+      } else {
+        data.put("todayLogins", 0);
+        data.put("highRiskLogins", 0);
+      }
+
+      // 活跃用户（简化实现）
+      if (userService != null) {
+        List<User> allUsers = userService.getAllUsers();
+        long activeUsers = allUsers.stream().filter(User::isActive).count();
+        data.put("activeUsers", activeUsers);
+      } else {
+        data.put("activeUsers", 0);
+      }
+
+      // 被锁定账户
+      if (loginSecurityService != null) {
+        List<LoginAttempt> lockedAccounts = loginSecurityService.getLockedAccounts();
+        data.put("lockedAccounts", lockedAccounts.size());
+      } else {
+        data.put("lockedAccounts", 0);
+      }
+
+      // 最近活动（示例数据）
+      List<Map<String, Object>> recentActivities = new ArrayList<>();
+      recentActivities.add(createActivity("用户登录成功", "user@example.com", "success", "✓", "5分钟前"));
+      recentActivities.add(createActivity("登录失败", "test@example.com", "warning", "⚠", "10分钟前"));
+      recentActivities.add(createActivity("账户被锁定", "admin@example.com", "danger", "🔒", "15分钟前"));
+      data.put("recentActivities", recentActivities);
+
+      String html = renderTemplate("auth-dashboard.mustache", data);
 
       ctx.response()
           .putHeader("content-type", "text/html; charset=utf-8")
           .end(html);
     } catch (Exception e) {
-      LOG.error("Failed to render index page", e);
+      LOG.error("Failed to render auth dashboard", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
     }
   }
 
+  private Map<String, Object> createActivity(String title, String detail, String statusClass, String icon,
+      String time) {
+    Map<String, Object> activity = new HashMap<>();
+    activity.put("title", title + " - " + detail);
+    activity.put("statusClass", statusClass);
+    activity.put("icon", icon);
+    activity.put("time", time);
+    return activity;
+  }
+
   /**
    * 权限列表页面
    */
-  @GetMapping("/page/auth/permissions")
+  @GetMapping("/permissions")
   public void getPermissionsPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();
@@ -1147,7 +1327,7 @@ public class AuthPlugin {
   /**
    * 用户权限管理页面
    */
-  @GetMapping("/page/auth/user/:userId")
+  @GetMapping("/user/:userId")
   public void getUserPermissionsPage(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
 

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账户锁定管理 - {{pluginName}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .page-title h1 {
+            color: #333;
+            font-size: 2rem;
+        }
+        
+        .breadcrumb {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #667eea;
+        }
+        
+        .summary-card.warning {
+            border-left-color: #ff9800;
+        }
+        
+        .summary-card.danger {
+            border-left-color: #f44336;
+        }
+        
+        .summary-card h3 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .locked-accounts-table {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .table-header h2 {
+            color: #333;
+            font-size: 1.5rem;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-box input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            width: 250px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #666;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .lock-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .lock-type.account {
+            background-color: #fff3e0;
+            color: #ff9800;
+        }
+        
+        .lock-type.ip {
+            background-color: #ffebee;
+            color: #f44336;
+        }
+        
+        .lock-type.both {
+            background-color: #e8eaf6;
+            color: #5c6bc0;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+        
+        .btn-success {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-danger {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #da190b;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .empty-state p {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h3 {
+            color: #333;
+            font-size: 1.5rem;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <div class="page-title">
+                    <h1>🔒 账户锁定管理</h1>
+                </div>
+                <div class="breadcrumb">
+                    <a href="/auth/">认证管理</a> / 账户锁定管理
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="showLockModal()">手动锁定账户</button>
+        </div>
+        
+        <div class="stats-summary">
+            <div class="summary-card warning">
+                <h3>当前锁定账户</h3>
+                <div class="value">{{lockedAccountsCount}}</div>
+            </div>
+            <div class="summary-card danger">
+                <h3>IP黑名单数量</h3>
+                <div class="value">{{blacklistedIpsCount}}</div>
+            </div>
+            <div class="summary-card">
+                <h3>今日解锁</h3>
+                <div class="value">{{todayUnlockedCount}}</div>
+            </div>
+        </div>
+        
+        <div class="locked-accounts-table">
+            <div class="table-header">
+                <h2>锁定账户列表</h2>
+                <div class="search-box">
+                    <input type="text" placeholder="搜索账户..." id="searchInput" onkeyup="filterTable()">
+                </div>
+            </div>
+            
+            {{#hasLockedAccounts}}
+            <table id="accountsTable">
+                <thead>
+                    <tr>
+                        <th>账户标识</th>
+                        <th>类型</th>
+                        <th>锁定类型</th>
+                        <th>锁定原因</th>
+                        <th>失败次数</th>
+                        <th>锁定时间</th>
+                        <th>解锁时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#lockedAccounts}}
+                    <tr>
+                        <td><strong>{{identifier}}</strong></td>
+                        <td>{{identifierType}}</td>
+                        <td><span class="lock-type {{lockTypeClass}}">{{lockType}}</span></td>
+                        <td>{{lockReason}}</td>
+                        <td>{{attemptCount}}</td>
+                        <td>{{lockedAt}}</td>
+                        <td>{{lockedUntil}}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-success" onclick="unlockAccount('{{identifier}}')">解锁</button>
+                                <button class="btn btn-primary" onclick="viewDetails('{{identifier}}')">详情</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {{/lockedAccounts}}
+                </tbody>
+            </table>
+            {{/hasLockedAccounts}}
+            
+            {{^hasLockedAccounts}}
+            <div class="empty-state">
+                <div class="icon">🎉</div>
+                <p>当前没有被锁定的账户</p>
+                <p style="color: #666; font-size: 0.9rem;">系统运行正常，所有账户都可以正常访问</p>
+            </div>
+            {{/hasLockedAccounts}}
+        </div>
+        
+        <!-- 手动锁定账户模态框 -->
+        <div id="lockModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>手动锁定账户</h3>
+                    <span class="close" onclick="closeLockModal()">&times;</span>
+                </div>
+                <form id="lockForm">
+                    <div class="form-group">
+                        <label>账户标识</label>
+                        <input type="text" name="identifier" required placeholder="邮箱、手机号或用户名">
+                    </div>
+                    <div class="form-group">
+                        <label>锁定时长（分钟）</label>
+                        <input type="number" name="duration" value="15" min="1" max="1440">
+                    </div>
+                    <div class="form-group">
+                        <label>锁定原因</label>
+                        <textarea name="reason" required placeholder="请输入锁定原因..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" onclick="closeLockModal()">取消</button>
+                        <button type="submit" class="btn btn-danger">确认锁定</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function filterTable() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('accountsTable');
+            const tr = table.getElementsByTagName('tr');
+            
+            for (let i = 1; i < tr.length; i++) {
+                const td = tr[i].getElementsByTagName('td')[0];
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = '';
+                    } else {
+                        tr[i].style.display = 'none';
+                    }
+                }
+            }
+        }
+        
+        function unlockAccount(identifier) {
+            if (confirm(`确定要解锁账户 ${identifier} 吗？`)) {
+                fetch('/auth/admin/security/unlock-account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify({ identifier: identifier })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('账户已成功解锁');
+                        location.reload();
+                    } else {
+                        alert('解锁失败：' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('操作失败：' + error.message);
+                });
+            }
+        }
+        
+        function viewDetails(identifier) {
+            window.location.href = `/auth/admin/security/account/${identifier}`;
+        }
+        
+        function showLockModal() {
+            document.getElementById('lockModal').style.display = 'block';
+        }
+        
+        function closeLockModal() {
+            document.getElementById('lockModal').style.display = 'none';
+            document.getElementById('lockForm').reset();
+        }
+        
+        // 表单提交处理
+        document.getElementById('lockForm').onsubmit = function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                identifier: formData.get('identifier'),
+                durationMinutes: parseInt(formData.get('duration')),
+                reason: formData.get('reason')
+            };
+            
+            fetch('/auth/admin/security/lock-account', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('账户已成功锁定');
+                    closeLockModal();
+                    location.reload();
+                } else {
+                    alert('锁定失败：' + result.error);
+                }
+            })
+            .catch(error => {
+                alert('操作失败：' + error.message);
+            });
+        };
+        
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('lockModal');
+            if (event.target == modal) {
+                closeLockModal();
+            }
+        }
+    </script>
+</body>
+</html> 

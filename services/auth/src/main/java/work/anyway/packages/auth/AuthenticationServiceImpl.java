@@ -6,6 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import work.anyway.interfaces.auth.AuthenticationService;
 import work.anyway.interfaces.auth.SecurityService;
+import work.anyway.interfaces.auth.LoginSecurityService;
+import work.anyway.interfaces.auth.LoginLogService;
+import work.anyway.interfaces.auth.LoginAttemptResult;
+import work.anyway.interfaces.auth.LoginLog;
 import work.anyway.interfaces.user.AccountService;
 import work.anyway.interfaces.user.AccountType;
 import work.anyway.interfaces.user.User;
@@ -35,62 +39,120 @@ public class AuthenticationServiceImpl implements AuthenticationService {
   @Autowired
   private SecurityService securityService;
 
+  @Autowired
+  private LoginSecurityService loginSecurityService;
+
+  @Autowired
+  private LoginLogService loginLogService;
+
   @Override
   public AuthResult authenticateByEmail(String email, String password) {
     LOG.debug("Authenticating user by email: {}", email);
+    String clientIp = getCurrentClientIp(); // 获取客户端IP
+    long startTime = System.currentTimeMillis();
 
     try {
       // 1. 验证输入参数
       if (securityService.isBlank(email) || securityService.isBlank(password)) {
+        recordFailedLoginAttempt(email, "email", clientIp, "Missing email or password", startTime);
         return AuthResult.failure("Email and password are required");
       }
 
       // 2. 清理邮箱地址
       email = securityService.sanitizeEmail(email);
       if (!securityService.isValidEmail(email)) {
+        recordFailedLoginAttempt(email, "email", clientIp, "Invalid email format", startTime);
         return AuthResult.failure("Invalid email format");
       }
 
-      // 3. 查找用户
+      // 3. 检查登录限制
+      LoginAttemptResult attemptResult = loginSecurityService.checkLoginAttempt(email, clientIp);
+      if (!attemptResult.isAllowed()) {
+        // 记录被阻止的登录尝试
+        LoginLog blockedLog = LoginLog.builder()
+            .identifier(email)
+            .identifierType("email")
+            .loginStatus("blocked")
+            .failureReason(attemptResult.getReason())
+            .clientIp(clientIp)
+            .userAgent(getCurrentUserAgent())
+            .loginSource("web")
+            .riskScore(loginSecurityService.assessLoginRisk(email, clientIp, getCurrentUserAgent()))
+            .loginDuration((int) (System.currentTimeMillis() - startTime))
+            .build();
+
+        loginLogService.recordBlockedLogin(blockedLog);
+        return AuthResult.failure(attemptResult.getReason());
+      }
+
+      // 4. 如果需要等待，返回等待信息
+      if (attemptResult.getWaitSeconds() > 0) {
+        return AuthResult.failure("Please wait " + attemptResult.getWaitSeconds() + " seconds before retry");
+      }
+
+      // 5. 查找用户
       Optional<User> userOpt = userService.findUserByEmail(email);
       if (userOpt.isEmpty()) {
         LOG.debug("User not found for email: {}", email);
+        recordFailedLoginAttempt(email, "email", clientIp, "User not found", startTime);
         return AuthResult.failure("Invalid email or password");
       }
 
       User user = userOpt.get();
 
-      // 4. 检查用户状态
+      // 6. 检查用户状态
       if (!user.isActive()) {
         LOG.debug("User account is not active: {}", email);
+        recordFailedLoginAttempt(email, "email", clientIp, "Account not active", startTime);
         return AuthResult.failure("Account is not active");
       }
 
-      // 5. 获取邮箱账户并验证密码
+      // 7. 获取邮箱账户并验证密码
       Optional<UserAccount> emailAccountOpt = accountService.findAccount(email, AccountType.EMAIL);
       if (emailAccountOpt.isEmpty()) {
         LOG.debug("Email account not found: {}", email);
+        recordFailedLoginAttempt(email, "email", clientIp, "Account not found", startTime);
         return AuthResult.failure("Invalid email or password");
       }
 
       UserAccount emailAccount = emailAccountOpt.get();
       String storedPassword = emailAccount.getCredentials();
 
-      // 6. 验证密码
+      // 8. 验证密码
       if (!securityService.verifyPassword(password, storedPassword)) {
         LOG.debug("Password verification failed for email: {}", email);
+        recordFailedLoginAttempt(email, "email", clientIp, "Invalid password", startTime);
         return AuthResult.failure("Invalid email or password");
       }
 
-      // 7. 记录登录时间
+      // 9. 登录成功 - 清除失败记录
+      loginSecurityService.clearFailedAttempts(email, clientIp);
+
+      // 10. 记录登录时间
       accountService.recordLogin(emailAccount.getId());
       userService.updateLastLogin(user.getId());
+
+      // 11. 记录成功登录日志
+      LoginLog successLog = LoginLog.builder()
+          .userId(user.getId())
+          .identifier(email)
+          .identifierType("email")
+          .loginStatus("success")
+          .clientIp(clientIp)
+          .userAgent(getCurrentUserAgent())
+          .loginSource("web")
+          .riskScore(loginSecurityService.assessLoginRisk(email, clientIp, getCurrentUserAgent()))
+          .loginDuration((int) (System.currentTimeMillis() - startTime))
+          .build();
+
+      loginLogService.recordSuccessfulLogin(successLog);
 
       LOG.info("User authenticated successfully: {} (ID: {})", email, user.getId());
       return AuthResult.success(user.getId(), emailAccount.getId(), AccountType.EMAIL.getCode());
 
     } catch (Exception e) {
       LOG.error("Authentication error for email: {}", email, e);
+      recordFailedLoginAttempt(email, "email", clientIp, "System error: " + e.getMessage(), startTime);
       return AuthResult.failure("Authentication failed");
     }
   }
@@ -282,7 +344,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         userService.updateLastLogin(userId);
       }
 
-      // TODO: 可以扩展记录到登录日志表
+      // 记录到登录日志表
+      LoginLog successLog = LoginLog.builder()
+          .userId(userId)
+          .identifier(getUserIdentifierByAccountId(accountId))
+          .identifierType(getIdentifierTypeByAccountId(accountId))
+          .loginStatus("success")
+          .clientIp(loginIp)
+          .userAgent(getCurrentUserAgent())
+          .loginSource("web")
+          .riskScore(0) // 成功登录风险较低
+          .build();
+
+      loginLogService.recordSuccessfulLogin(successLog);
+
       LOG.info("Login successful - User: {}, Account: {}, IP: {}", userId, accountId, loginIp);
 
     } catch (Exception e) {
@@ -296,7 +371,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         identifier, reason, loginIp);
 
     try {
-      // TODO: 可以扩展记录到登录失败日志表
+      // 记录到登录失败日志表
+      LoginLog failedLog = LoginLog.builder()
+          .identifier(identifier)
+          .identifierType(getIdentifierTypeFromIdentifier(identifier))
+          .loginStatus("failed")
+          .failureReason(reason)
+          .clientIp(loginIp)
+          .userAgent(getCurrentUserAgent())
+          .loginSource("web")
+          .riskScore(loginSecurityService.assessLoginRisk(identifier, loginIp, getCurrentUserAgent()))
+          .build();
+
+      loginLogService.recordFailedLogin(failedLog);
+
       LOG.warn("Login failed - Identifier: {}, Reason: {}, IP: {}", identifier, reason, loginIp);
 
     } catch (Exception e) {
@@ -308,9 +396,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
   public boolean isLoginAttemptLimited(String identifier) {
     LOG.debug("Checking login attempt limit for identifier: {}", identifier);
 
-    // TODO: 实现登录尝试限制逻辑
-    // 可以使用缓存服务来记录失败次数
-    return false;
+    try {
+      // 使用新的登录安全服务检查限制
+      LoginAttemptResult result = loginSecurityService.checkLoginAttempt(identifier, getCurrentClientIp());
+      return !result.isAllowed();
+    } catch (Exception e) {
+      LOG.error("Error checking login attempt limit", e);
+      return false;
+    }
   }
 
   @Override
@@ -318,11 +411,114 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     LOG.debug("Clearing failed login attempts for identifier: {}", identifier);
 
     try {
-      // TODO: 清除缓存中的失败记录
+      // 使用新的登录安全服务清除失败记录
+      loginSecurityService.clearFailedAttempts(identifier, null);
       LOG.debug("Failed login attempts cleared for: {}", identifier);
 
     } catch (Exception e) {
       LOG.error("Failed to clear login attempts", e);
+    }
+  }
+
+  // 私有辅助方法
+
+  /**
+   * 获取当前请求的客户端IP
+   * 注意：这是简化实现，实际应该从HTTP请求上下文中获取
+   */
+  private String getCurrentClientIp() {
+    // 简化实现：在实际应用中应该从 RoutingContext 或 HttpServletRequest 中获取
+    // 这里返回一个默认值，实际使用时需要通过依赖注入或线程本地变量获取真实IP
+    return "127.0.0.1";
+  }
+
+  /**
+   * 获取当前请求的User-Agent
+   * 注意：这是简化实现，实际应该从HTTP请求上下文中获取
+   */
+  private String getCurrentUserAgent() {
+    // 简化实现：在实际应用中应该从 RoutingContext 或 HttpServletRequest 中获取
+    return "Unknown";
+  }
+
+  /**
+   * 记录失败的登录尝试
+   */
+  private void recordFailedLoginAttempt(String identifier, String identifierType,
+      String clientIp, String reason, long startTime) {
+    try {
+      // 记录到登录安全服务
+      loginSecurityService.recordFailedAttempt(identifier, identifierType, clientIp, reason);
+
+      // 记录到登录日志服务
+      LoginLog failedLog = LoginLog.builder()
+          .identifier(identifier)
+          .identifierType(identifierType)
+          .loginStatus("failed")
+          .failureReason(reason)
+          .clientIp(clientIp)
+          .userAgent(getCurrentUserAgent())
+          .loginSource("web")
+          .riskScore(loginSecurityService.assessLoginRisk(identifier, clientIp, getCurrentUserAgent()))
+          .loginDuration((int) (System.currentTimeMillis() - startTime))
+          .build();
+
+      loginLogService.recordFailedLogin(failedLog);
+
+    } catch (Exception e) {
+      LOG.error("Failed to record login attempt", e);
+    }
+  }
+
+  /**
+   * 根据账户ID获取用户标识符
+   */
+  private String getUserIdentifierByAccountId(String accountId) {
+    try {
+      if (securityService.isBlank(accountId)) {
+        return "unknown";
+      }
+
+      Optional<UserAccount> accountOpt = accountService.getAccountById(accountId);
+      return accountOpt.map(UserAccount::getIdentifier).orElse("unknown");
+    } catch (Exception e) {
+      LOG.error("Error getting user identifier by account ID", e);
+      return "unknown";
+    }
+  }
+
+  /**
+   * 根据账户ID获取标识符类型
+   */
+  private String getIdentifierTypeByAccountId(String accountId) {
+    try {
+      if (securityService.isBlank(accountId)) {
+        return "unknown";
+      }
+
+      Optional<UserAccount> accountOpt = accountService.getAccountById(accountId);
+      return accountOpt.map(account -> account.getAccountType().getCode()).orElse("unknown");
+    } catch (Exception e) {
+      LOG.error("Error getting identifier type by account ID", e);
+      return "unknown";
+    }
+  }
+
+  /**
+   * 根据标识符推断标识符类型
+   */
+  private String getIdentifierTypeFromIdentifier(String identifier) {
+    if (securityService.isBlank(identifier)) {
+      return "unknown";
+    }
+
+    // 简单的推断逻辑
+    if (securityService.isValidEmail(identifier)) {
+      return "email";
+    } else if (identifier.matches("^\\d{11}$")) { // 11位数字，可能是手机号
+      return "phone";
+    } else {
+      return "username";
     }
   }
 }

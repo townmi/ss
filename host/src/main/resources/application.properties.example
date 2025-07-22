@@ -1,79 +1,80 @@
-# Host configuration
-http.port=8080
-http.host=0.0.0.0
+# 数据库配置
+database.type=memory
+# database.type=mysql
+# database.url=jdbc:mysql://localhost:3306/direct_llm_rask
+# database.username=root
+# database.password=password
 
-# Plugin configuration
-plugins.directory=libs/plugins
-plugins.enabled=true
+# 服务端口配置
+server.port=8080
 
-# Service configuration
-services.directory=libs/services
-services.enabled=true
-
-# Logging configuration
+# 日志配置
 logging.level=INFO
-logging.pattern=%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
 
-# Specific logger levels (examples)
-# logging.level.work.anyway.packages.data=WARN
-# logging.level.work.anyway.packages.user=DEBUG
-# logging.level.io.vertx=INFO
-# logging.level.org.springframework=WARN
-# logging.level.io.vertx.sqlclient=DEBUG
+# 插件配置
+plugins.scan.packages=work.anyway.packages
 
-# Service container configuration
-service.container.cache.enabled=true
-service.container.lazy.init=true
+# 认证配置
+auth.jwt.secret=your-secret-key-here
+auth.jwt.expiration=3600
+auth.password.salt=your-salt-here
 
-# Vert.x configuration
-vertx.worker.pool.size=20
-vertx.event.loop.pool.size=2
-vertx.max.event.loop.execute.time=2000000000
-vertx.max.worker.execute.time=60000000000
+# 登录安全配置
+# 账户级别最大失败尝试次数
+login.security.max.attempts.account=5
 
-# Development mode
-dev.mode=false
+# IP级别最大失败尝试次数  
+login.security.max.attempts.ip=20
 
-# Datasource configuration
-# Default datasource
-datasource.default=mysql
+# 账户锁定时长（分钟）
+login.security.lock.duration.minutes=15
 
-# Main datasource configuration (PostgreSQL)
-# datasource.main.type=postgresql
-# datasource.main.host=localhost
-# datasource.main.port=5432
-# datasource.main.database=myapp_db
-# datasource.main.user=postgres
-# datasource.main.password=your_password_here
-# datasource.main.maxPoolSize=10
+# 渐进式延迟基数（秒）
+login.security.progressive.delay.base=60
 
-# Test datasource configuration (PostgreSQL) - Optional
-#datasource.test.type=postgresql
-#datasource.test.host=localhost
-#datasource.test.port=5432
-#datasource.test.database=test_db
-#datasource.test.user=test_user
-#datasource.test.password=test_password_here
-#datasource.test.maxPoolSize=5
+# IP自动封禁配置
+login.security.ip.auto.blacklist.enabled=true
+login.security.ip.auto.blacklist.threshold=50
+login.security.ip.check.window.hours=1
+login.security.ip.auto.blacklist.duration.minutes=60
 
-# MySQL datasource example - Optional
-datasource.mysql.type=mysql
-datasource.mysql.host=localhost
-datasource.mysql.port=3306
-datasource.mysql.database=your_database_name
-datasource.mysql.user=your_username
-datasource.mysql.password=your_password_here
-datasource.mysql.maxPoolSize=10
-datasource.mysql.connectionTimeout=5000 
-datasource.mysql.idleTimeout=600000 
+# 风险评估权重配置（总分100分）
+login.security.risk.location.weight=25
+login.security.risk.time.weight=15
+login.security.risk.device.weight=20
+login.security.risk.frequency.weight=25
+login.security.risk.behavior.weight=15
 
-# Analytics datasource configuration - Optional
-#datasource.analytics.type=postgresql
-#datasource.analytics.host=analytics.example.com
-#datasource.analytics.port=5432
-#datasource.analytics.database=analytics_db
-#datasource.analytics.user=analytics_user
-#datasource.analytics.password=analytics_password_here
-#datasource.analytics.maxPoolSize=5
-#datasource.analytics.connectionTimeout=30000
-#datasource.analytics.idleTimeout=600000 
+# 登录日志保留配置
+login.logs.retention.days=90
+
+# 登录尝试记录保留配置
+login.attempts.retention.hours=24
+
+# 自动清理配置
+login.security.auto.cleanup.enabled=true
+login.security.auto.cleanup.interval.hours=24
+
+# 高风险登录阈值
+login.security.high.risk.threshold=70
+
+# 异常登录检测配置
+login.security.abnormal.detection.enabled=true
+login.security.abnormal.detection.new.ip.enabled=true
+login.security.abnormal.detection.unusual.time.enabled=true
+
+# 邮件通知配置（高风险登录时发送）
+login.security.notification.email.enabled=false
+login.security.notification.email.recipients=admin@example.com
+
+# 监控配置
+login.security.monitoring.enabled=true
+login.security.monitoring.alert.threshold.failed.attempts=10
+login.security.monitoring.alert.threshold.blocked.logins=5
+
+# 缓存配置
+cache.type=memory
+# cache.type=redis
+# cache.redis.host=localhost
+# cache.redis.port=6379
+# cache.redis.password= 
