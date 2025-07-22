@@ -23,6 +23,26 @@
       <artifactId>interfaces.data</artifactId>
       <version>${project.version}</version>
     </dependency>
+    
+    <!-- 用户接口依赖 -->
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>interfaces.user</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
+    <!-- 密码加密 - BCrypt -->
+    <dependency>
+      <groupId>org.mindrot</groupId>
+      <artifactId>jbcrypt</artifactId>
+      <version>0.4</version>
+    </dependency>
+    
+    <!-- 日志依赖 -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

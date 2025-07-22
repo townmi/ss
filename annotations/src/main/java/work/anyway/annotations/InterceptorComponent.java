@@ -8,35 +8,25 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标记一个类为插件
- * 插件会自动注册到系统中并在插件列表中显示
+ * 标记一个类为拦截器组件
+ * 拦截器会自动注册到系统中
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Component
-public @interface Plugin {
+public @interface InterceptorComponent {
   /**
-   * 插件名称
+   * 拦截器名称，用于在@Intercepted注解中引用
    */
   String name();
 
   /**
-   * 插件版本
-   */
-  String version();
-
-  /**
-   * 插件描述
+   * 拦截器描述
    */
   String description() default "";
 
   /**
-   * 插件图标（emoji 或图标类名）
+   * 执行顺序，数字越小优先级越高
    */
-  String icon() default "📦";
-
-  /**
-   * 插件主页路径
-   */
-  String mainPagePath() default "";
+  int order() default 0;
 }

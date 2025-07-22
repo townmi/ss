@@ -121,19 +121,7 @@
       line-height: 1.8;
     }
 
-    .permissions-section {
-      background: white;
-      border-radius: 10px;
-      padding: 40px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
 
-    .permissions-section h2 {
-      color: #333;
-      margin-bottom: 30px;
-      font-size: 32px;
-      text-align: center;
-    }
 
     .permissions-grid {
       display: grid;
@@ -158,9 +146,33 @@
       color: #667eea;
     }
 
+    .auth-section,
+    .permissions-section {
+      background: white;
+      border-radius: 10px;
+      padding: 40px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 40px;
+    }
+
+    .auth-section h2,
+    .permissions-section h2 {
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 32px;
+      text-align: center;
+    }
+
+    .auth-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
     .action-buttons {
       text-align: center;
-      margin-top: 60px;
+      margin-top: 20px;
     }
 
     .btn {
@@ -180,6 +192,23 @@
       background: #764ba2;
       transform: translateY(-2px);
       box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary {
+      background: #667eea;
+    }
+
+    .btn-primary:hover {
+      background: #764ba2;
+    }
+
+    .btn-success {
+      background: #28a745;
+    }
+
+    .btn-success:hover {
+      background: #218838;
+      box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
     }
 
     .btn-secondary {
@@ -239,9 +268,21 @@
       </div>
     </div>
 
-    <div class="action-buttons">
-      <a href="/page/auth/permissions" class="btn">管理权限</a>
-      <a href="/page/auth/user/test-user" class="btn btn-secondary">查看用户权限</a>
+    <div class="auth-section">
+      <h2>用户认证</h2>
+      <div class="auth-buttons">
+        <a href="/page/auth/login" class="btn btn-primary">🔑 用户登录</a>
+        <a href="/page/auth/register" class="btn btn-success">📝 用户注册</a>
+        <a href="/page/auth/forgot-password" class="btn btn-secondary">🔒 忘记密码</a>
+      </div>
+    </div>
+
+    <div class="permissions-section">
+      <h2>权限管理</h2>
+      <div class="action-buttons">
+        <a href="/page/auth/permissions" class="btn">管理权限</a>
+        <a href="/page/auth/user/test-user" class="btn btn-secondary">查看用户权限</a>
+      </div>
     </div>
   </div>
 

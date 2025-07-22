@@ -39,6 +39,11 @@
       <artifactId>interfaces.user</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>interfaces.cache</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     
     <!-- Vert.x (provided by host) -->
     <dependency>
@@ -81,6 +86,34 @@
       <groupId>work.anyway</groupId>
       <artifactId>services.auth</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    
+    <!-- 认证功能依赖 -->
+    
+    <!-- JWT Token 处理 -->
+    <dependency>
+      <groupId>com.auth0</groupId>
+      <artifactId>java-jwt</artifactId>
+      <version>4.4.0</version>
+    </dependency>
+    
+    <!-- 数据验证 -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <version>3.0.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.validator</groupId>
+      <artifactId>hibernate-validator</artifactId>
+      <version>8.0.1.Final</version>
+    </dependency>
+    
+    <!-- 表达式语言支持 (Hibernate Validator 需要) -->
+    <dependency>
+      <groupId>org.glassfish</groupId>
+      <artifactId>jakarta.el</artifactId>
+      <version>4.0.2</version>
     </dependency>
   </dependencies>
 

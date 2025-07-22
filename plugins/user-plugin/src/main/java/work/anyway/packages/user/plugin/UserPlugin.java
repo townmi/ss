@@ -1,18 +1,20 @@
 package work.anyway.packages.user.plugin;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import work.anyway.annotations.*;
+import work.anyway.interfaces.user.User;
 import work.anyway.interfaces.user.UserService;
+import work.anyway.interfaces.user.AccountService;
+import work.anyway.interfaces.user.AccountType;
+import work.anyway.interfaces.user.UserAccount;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -22,8 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Scanner;
-import java.util.stream.Collectors;
 
 /**
  * 用户管理插件
@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 @Plugin(name = "User Plugin", version = "1.0.0", description = "管理系统用户，包括创建、查看、编辑用户信息", icon = "👤", mainPagePath = "/page/users/")
 @Controller
 @RequestMapping("/")
+@Intercepted({ "SystemRequestLog" }) // 类级别：所有方法都使用系统请求日志拦截器
 public class UserPlugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(UserPlugin.class);
@@ -38,24 +39,33 @@ public class UserPlugin {
   @Autowired
   private UserService userService;
 
+  @Autowired(required = false)
+  private AccountService accountService;
+
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
 
   // API 端点
 
   /**
-   * 获取所有用户
+   * 获取所有用户 - 需要认证
    */
-  @GetMapping("/users")
+  @GetMapping("/api/users")
+  @Intercepted({ "SimpleAuth", "OperationLog" }) // 方法级别：需要认证和操作日志记录
   public void getAllUsers(RoutingContext ctx) {
     try {
-      List<Map<String, Object>> users = userService.getAllUsers();
+      List<User> users = userService.getAllUsers();
       LOG.debug("Retrieved {} users", users.size());
+
+      // 转换为Map格式以保持API兼容性
+      List<Map<String, Object>> userMaps = users.stream()
+          .map(this::convertUserToMap)
+          .toList();
 
       JsonObject response = new JsonObject()
           .put("success", true)
-          .put("data", users)
-          .put("total", users.size());
+          .put("data", userMaps)
+          .put("total", userMaps.size());
 
       ctx.response()
           .putHeader("content-type", "application/json")
@@ -67,20 +77,22 @@ public class UserPlugin {
   }
 
   /**
-   * 根据ID获取用户
+   * 根据ID获取用户 - 需要认证
    */
-  @GetMapping("/users/:id")
+  @GetMapping("/api/users/:id")
+  @Intercepted({ "SimpleAuth", "OperationLog" })
   public void getUserById(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
     LOG.debug("Getting user by ID: {}", userId);
 
     try {
-      Optional<Map<String, Object>> userOpt = userService.getUserById(userId);
+      Optional<User> userOpt = userService.getUserById(userId);
 
       if (userOpt.isPresent()) {
+        Map<String, Object> userMap = convertUserToMap(userOpt.get());
         JsonObject response = new JsonObject()
             .put("success", true)
-            .put("data", userOpt.get());
+            .put("data", userMap);
 
         ctx.response()
             .putHeader("content-type", "application/json")
@@ -96,9 +108,10 @@ public class UserPlugin {
   }
 
   /**
-   * 创建用户
+   * 创建用户 - 需要认证
    */
-  @PostMapping("/users")
+  @PostMapping("/api/users")
+  @Intercepted({ "SimpleAuth", "OperationLog" })
   public void createUser(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Creating user with data: {}", body);
@@ -120,13 +133,25 @@ public class UserPlugin {
     }
 
     try {
-      Map<String, Object> userData = body.getMap();
-      Map<String, Object> createdUser = userService.createUser(userData);
-      LOG.info("User created successfully: {}", createdUser.get("id"));
+      // 1. 创建User实体
+      User user = new User();
+      user.setName(body.getString("name"));
+      user.setPhone(body.getString("phone"));
+      user.setDepartment(body.getString("department"));
+      user.setRole(body.getString("role", "user"));
+      user.setStatus(body.getString("status", "active"));
 
+      User createdUser = userService.createUser(user);
+      LOG.info("User created successfully: {}", createdUser.getId());
+
+      // 注意：UserPlugin只负责用户基本信息管理
+      // 如果需要创建带认证功能的用户，请使用AuthPlugin的注册接口
+      // 这里只创建用户基本信息，不处理密码和认证相关逻辑
+
+      Map<String, Object> userMap = convertUserToMap(createdUser);
       JsonObject response = new JsonObject()
           .put("success", true)
-          .put("data", createdUser)
+          .put("data", userMap)
           .put("message", "User created successfully");
 
       ctx.response()
@@ -158,18 +183,40 @@ public class UserPlugin {
     }
 
     try {
-      Map<String, Object> userData = body.getMap();
-      boolean updated = userService.updateUser(userId, userData);
+      // 构建User实体进行更新
+      User userUpdate = new User();
+      if (body.containsKey("name"))
+        userUpdate.setName(body.getString("name"));
+      if (body.containsKey("phone"))
+        userUpdate.setPhone(body.getString("phone"));
+      if (body.containsKey("department"))
+        userUpdate.setDepartment(body.getString("department"));
+      if (body.containsKey("role"))
+        userUpdate.setRole(body.getString("role"));
+      if (body.containsKey("status"))
+        userUpdate.setStatus(body.getString("status"));
+
+      boolean updated = userService.updateUser(userId, userUpdate);
 
       if (updated) {
         LOG.info("User updated successfully: {}", userId);
 
+        // 更新邮箱账户（如果提供）
+        if (body.containsKey("email") && accountService != null) {
+          String newEmail = body.getString("email");
+          accountService.getEmailAccount(userId).ifPresent(emailAccount -> {
+            emailAccount.setIdentifier(newEmail);
+            accountService.updateAccount(emailAccount.getId(), emailAccount);
+          });
+        }
+
         // 获取更新后的用户信息
-        Optional<Map<String, Object>> updatedUser = userService.getUserById(userId);
+        Optional<User> updatedUser = userService.getUserById(userId);
+        Map<String, Object> userMap = updatedUser.map(this::convertUserToMap).orElse(null);
 
         JsonObject response = new JsonObject()
             .put("success", true)
-            .put("data", updatedUser.orElse(null))
+            .put("data", userMap)
             .put("message", "User updated successfully");
 
         ctx.response()
@@ -225,12 +272,13 @@ public class UserPlugin {
     LOG.debug("Getting user by email: {}", email);
 
     try {
-      Optional<Map<String, Object>> userOpt = userService.findUserByEmail(email);
+      Optional<User> userOpt = userService.findUserByEmail(email);
 
       if (userOpt.isPresent()) {
+        Map<String, Object> userMap = convertUserToMap(userOpt.get());
         JsonObject response = new JsonObject()
             .put("success", true)
-            .put("data", userOpt.get());
+            .put("data", userMap);
 
         ctx.response()
             .putHeader("content-type", "application/json")
@@ -245,62 +293,77 @@ public class UserPlugin {
     }
   }
 
-  /**
-   * 验证用户登录
-   */
-  @PostMapping("/users/authenticate")
-  public void authenticateUser(RoutingContext ctx) {
-    JsonObject body = ctx.getBodyAsJson();
-
-    if (body == null || !body.containsKey("email") || !body.containsKey("password")) {
-      sendError(ctx, 400, "Email and password are required");
-      return;
-    }
-
-    String email = body.getString("email");
-    String password = body.getString("password");
-
-    try {
-      Optional<Map<String, Object>> userOpt = userService.authenticateUser(email, password);
-
-      if (userOpt.isPresent()) {
-        LOG.info("User authenticated successfully: {}", email);
-
-        JsonObject response = new JsonObject()
-            .put("success", true)
-            .put("data", userOpt.get())
-            .put("message", "Authentication successful");
-
-        ctx.response()
-            .putHeader("content-type", "application/json")
-            .end(response.encode());
-      } else {
-        LOG.warn("Authentication failed for email: {}", email);
-        sendError(ctx, 401, "Invalid email or password");
-      }
-    } catch (Exception e) {
-      LOG.error("Authentication error for email: {}", email, e);
-      sendError(ctx, 500, "Authentication failed: " + e.getMessage());
-    }
-  }
-
   // 页面路由
 
   /**
-   * 用户列表页面
+   * 用户管理首页
    */
   @GetMapping("/page/users/")
+  public void getUserHomePage(RoutingContext ctx) {
+    LOG.info("Rendering user management homepage...");
+    try {
+      // 获取用户统计数据
+      List<User> allUsers = userService.getAllUsers();
+
+      // 计算统计信息
+      long totalUsers = allUsers.size();
+      long activeUsers = allUsers.stream()
+          .filter(User::isActive)
+          .count();
+      long adminUsers = allUsers.stream()
+          .filter(user -> "admin".equals(user.getRole()))
+          .count();
+
+      // 计算今日新增用户（简化实现，实际应该根据创建时间计算）
+      long newUsersToday = 0; // TODO: 实现基于时间的统计
+
+      Map<String, Object> data = new HashMap<>();
+      data.put("pluginName", "User Plugin");
+      data.put("pluginVersion", "1.0.0");
+      data.put("userCount", totalUsers);
+      data.put("activeUserCount", activeUsers);
+      data.put("adminUserCount", adminUsers);
+      data.put("newUsersToday", newUsersToday);
+
+      LOG.info("Rendering homepage with stats: total={}, active={}, admin={}",
+          totalUsers, activeUsers, adminUsers);
+      String html = renderTemplate("index.mustache", data);
+      LOG.info("Homepage template rendered successfully, HTML length: {}", html.length());
+
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+
+      LOG.info("User homepage response sent successfully");
+    } catch (Exception e) {
+      LOG.error("Failed to render user homepage", e);
+      ctx.response()
+          .setStatusCode(500)
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end("<html><body><h1>Internal Server Error</h1><p>" + e.getMessage() + "</p></body></html>");
+    }
+  }
+
+  /**
+   * 用户列表页面 - 必须在 /:id 路由之前定义
+   */
+  @GetMapping("/page/users/list")
   public void getUsersPage(RoutingContext ctx) {
     LOG.info("Rendering users page...");
     try {
       LOG.info("Getting all users from service...");
-      List<Map<String, Object>> users = userService.getAllUsers();
+      List<User> users = userService.getAllUsers();
       LOG.info("Retrieved {} users from service", users.size());
 
+      // 转换为Map格式供模板使用
+      List<Map<String, Object>> userMaps = users.stream()
+          .map(this::convertUserToMap)
+          .toList();
+
       Map<String, Object> data = new HashMap<>();
-      data.put("users", users);
-      data.put("userCount", users.size());
-      data.put("hasUsers", !users.isEmpty());
+      data.put("users", userMaps);
+      data.put("userCount", userMaps.size());
+      data.put("hasUsers", !userMaps.isEmpty());
 
       LOG.info("Rendering template with data: userCount={}, hasUsers={}", users.size(), !users.isEmpty());
       String html = renderTemplate("users.mustache", data);
@@ -321,16 +384,7 @@ public class UserPlugin {
   }
 
   /**
-   * 用户列表页面 - 别名路由
-   */
-  @GetMapping("/page/users/list")
-  public void getUsersListPage(RoutingContext ctx) {
-    // 委托给主要的用户列表页面处理
-    getUsersPage(ctx);
-  }
-
-  /**
-   * 创建用户页面
+   * 创建用户页面 - 必须在 /:id 路由之前定义
    */
   @GetMapping("/page/users/create")
   public void getCreateUserPage(RoutingContext ctx) {
@@ -354,50 +408,19 @@ public class UserPlugin {
   }
 
   /**
-   * 用户详情页面
-   */
-  @GetMapping("/page/users/:id")
-  public void getUserDetailPage(RoutingContext ctx) {
-    String userId = ctx.pathParam("id");
-
-    try {
-      Optional<Map<String, Object>> userOpt = userService.getUserById(userId);
-
-      if (userOpt.isPresent()) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("user", userOpt.get());
-
-        String html = renderTemplate("user-detail.mustache", data);
-
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
-      } else {
-        ctx.response()
-            .setStatusCode(404)
-            .end("User not found");
-      }
-    } catch (Exception e) {
-      LOG.error("Failed to render user detail page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
-    }
-  }
-
-  /**
-   * 编辑用户页面
+   * 编辑用户页面 - 必须在 /:id 路由之前定义
    */
   @GetMapping("/page/users/:id/edit")
   public void getEditUserPage(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
 
     try {
-      Optional<Map<String, Object>> userOpt = userService.getUserById(userId);
+      Optional<User> userOpt = userService.getUserById(userId);
 
       if (userOpt.isPresent()) {
+        Map<String, Object> userMap = convertUserToMap(userOpt.get());
         Map<String, Object> data = new HashMap<>();
-        data.put("user", userOpt.get());
+        data.put("user", userMap);
 
         String html = renderTemplate("edit-user.mustache", data);
 
@@ -411,6 +434,39 @@ public class UserPlugin {
       }
     } catch (Exception e) {
       LOG.error("Failed to render edit user page", e);
+      ctx.response()
+          .setStatusCode(500)
+          .end("Internal Server Error");
+    }
+  }
+
+  /**
+   * 用户详情页面 - 必须在最后定义，避免与具体路径冲突
+   */
+  @GetMapping("/page/users/:id")
+  public void getUserDetailPage(RoutingContext ctx) {
+    String userId = ctx.pathParam("id");
+
+    try {
+      Optional<User> userOpt = userService.getUserById(userId);
+
+      if (userOpt.isPresent()) {
+        Map<String, Object> userMap = convertUserToMap(userOpt.get());
+        Map<String, Object> data = new HashMap<>();
+        data.put("user", userMap);
+
+        String html = renderTemplate("user-detail.mustache", data);
+
+        ctx.response()
+            .putHeader("content-type", "text/html; charset=utf-8")
+            .end(html);
+      } else {
+        ctx.response()
+            .setStatusCode(404)
+            .end("User not found");
+      }
+    } catch (Exception e) {
+      LOG.error("Failed to render user detail page", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -456,5 +512,31 @@ public class UserPlugin {
       LOG.error("Error rendering template: " + templateName, e);
       throw new RuntimeException("Template rendering error: " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * 将User实体转换为Map格式，保持API兼容性
+   */
+  private Map<String, Object> convertUserToMap(User user) {
+    Map<String, Object> userMap = new HashMap<>();
+    userMap.put("id", user.getId());
+    userMap.put("name", user.getName());
+    userMap.put("phone", user.getPhone());
+    userMap.put("department", user.getDepartment());
+    userMap.put("role", user.getRole());
+    userMap.put("status", user.getStatus());
+    userMap.put("createdAt", user.getCreatedAt());
+    userMap.put("updatedAt", user.getUpdatedAt());
+    userMap.put("lastLogin", user.getLastLogin());
+
+    // 获取邮箱信息
+    if (accountService != null) {
+      accountService.getEmailAccount(user.getId()).ifPresent(emailAccount -> {
+        userMap.put("email", emailAccount.getIdentifier());
+        userMap.put("emailVerified", emailAccount.isVerified());
+      });
+    }
+
+    return userMap;
   }
 }

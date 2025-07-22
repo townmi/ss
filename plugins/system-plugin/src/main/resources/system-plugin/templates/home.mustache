@@ -206,6 +206,66 @@
             margin-top: 5px;
         }
 
+        .quick-auth {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 40px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .quick-auth h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .auth-actions {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .auth-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .register-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .register-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .manage-btn {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .manage-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2rem;
@@ -213,6 +273,15 @@
             
             .plugins-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .auth-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .auth-btn {
+                width: 200px;
             }
         }
     </style>
@@ -242,6 +311,15 @@
             <div class="stat-card">
                 <div class="stat-value">✅</div>
                 <div class="stat-label">系统状态</div>
+            </div>
+        </div>
+
+        <div class="quick-auth">
+            <h2>快速认证</h2>
+            <div class="auth-actions">
+                <a href="/page/auth/login" class="auth-btn login-btn">🔑 登录</a>
+                <a href="/page/auth/register" class="auth-btn register-btn">📝 注册</a>
+                <a href="/page/auth/" class="auth-btn manage-btn">⚙️ 权限管理</a>
             </div>
         </div>
 

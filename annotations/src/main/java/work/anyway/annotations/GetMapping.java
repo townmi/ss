@@ -12,18 +12,18 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface GetMapping {
-    /**
-     * URL 路径
-     */
-    String[] value() default {};
+  /**
+   * URL 路径
+   */
+  String[] value() default {};
 
-    /**
-     * 路径别名
-     */
-    String[] path() default {};
+  /**
+   * 路径别名
+   */
+  String[] path() default {};
 
-    /**
-     * 响应内容类型
-     */
-    String[] produces() default {};
+  /**
+   * 响应内容类型
+   */
+  String[] produces() default {};
 }
