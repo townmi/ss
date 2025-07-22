@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger - default level will be set programmatically from application.properties -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- 
+    Note: Specific logger levels are now configured in application.properties
+    using the format: logging.level.<logger-name>=<LEVEL>
+    
+    Examples:
+    - logging.level=INFO                                                    (root logger)
+    - logging.level.work.anyway.packages.data=WARN                        (package level)
+    - logging.level.work.anyway.packages.data.AsyncDatabaseDataServiceImpl=ERROR  (class level)
+    -->
+</configuration> 

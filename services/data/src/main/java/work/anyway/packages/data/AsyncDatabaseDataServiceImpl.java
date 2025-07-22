@@ -16,6 +16,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import io.vertx.core.json.JsonObject;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.sql.Timestamp;
+import java.util.Date;
 
 /**
  * 异步数据库数据服务实现
@@ -102,7 +108,8 @@ public class AsyncDatabaseDataServiceImpl implements DataService, TypedDataServi
         String columnName = camelToSnake(key);
         columns.add(columnName);
         placeholders.add("?");
-        values.add(value);
+        // Convert value to database-compatible format
+        values.add(convertForDatabase(value));
       });
 
       String sql = String.format("INSERT INTO %s (%s) VALUES (%s)",
@@ -314,7 +321,8 @@ public class AsyncDatabaseDataServiceImpl implements DataService, TypedDataServi
       updateData.forEach((key, value) -> {
         String columnName = camelToSnake(key);
         setClauses.add(columnName + " = ?");
-        values.add(value);
+        // Convert value to database-compatible format
+        values.add(convertForDatabase(value));
       });
 
       values.add(id);
@@ -514,11 +522,62 @@ public class AsyncDatabaseDataServiceImpl implements DataService, TypedDataServi
     for (int i = 0; i < row.size(); i++) {
       String columnName = row.getColumnName(i);
       Object value = row.getValue(i);
+      // Convert database values to application-friendly format
+      value = convertFromDatabase(value);
       // 转换 snake_case 到 camelCase
       String key = snakeToCamel(columnName);
       map.put(key, value);
     }
     return map;
+  }
+
+  /**
+   * Convert values to database-compatible format
+   */
+  private Object convertForDatabase(Object value) {
+    if (value == null) {
+      return null;
+    }
+
+    // Convert Java Date to Timestamp
+    if (value instanceof Date) {
+      return new Timestamp(((Date) value).getTime());
+    }
+
+    // Convert Long timestamp to Timestamp (if it looks like a timestamp)
+    if (value instanceof Long) {
+      Long longValue = (Long) value;
+      // Check if this might be a timestamp (year 2000 to 2100 range)
+      if (longValue > 946684800000L && longValue < 4102444800000L) {
+        return new Timestamp(longValue);
+      }
+    }
+
+    // Return value as-is for other types
+    return value;
+  }
+
+  /**
+   * Convert database values to application-friendly format
+   */
+  private Object convertFromDatabase(Object value) {
+    if (value == null) {
+      return null;
+    }
+
+    // Convert LocalDateTime to timestamp for JSON serialization
+    if (value instanceof LocalDateTime) {
+      LocalDateTime dateTime = (LocalDateTime) value;
+      return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    // Convert Timestamp to Long
+    if (value instanceof Timestamp) {
+      return ((Timestamp) value).getTime();
+    }
+
+    // Return value as-is for other types
+    return value;
   }
 
   private String camelToSnake(String str) {

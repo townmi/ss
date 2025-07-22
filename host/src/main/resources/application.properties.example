@@ -14,6 +14,13 @@ services.enabled=true
 logging.level=INFO
 logging.pattern=%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
 
+# Specific logger levels (examples)
+# logging.level.work.anyway.packages.data=WARN
+# logging.level.work.anyway.packages.user=DEBUG
+# logging.level.io.vertx=INFO
+# logging.level.org.springframework=WARN
+# logging.level.io.vertx.sqlclient=DEBUG
+
 # Service container configuration
 service.container.cache.enabled=true
 service.container.lazy.init=true
