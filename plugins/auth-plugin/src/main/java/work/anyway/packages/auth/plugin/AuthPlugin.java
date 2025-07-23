@@ -43,6 +43,16 @@ import java.util.*;
  * @since 1.0.0
  */
 @Plugin(name = "Auth Plugin", version = "1.0.0", description = "管理用户认证和权限，提供完整的身份验证和访问控制功能", icon = "🔐", mainPagePath = "/auth/")
+// 声明权限定义
+@PermissionDef(code = "auth.manage", name = "认证管理", description = "管理用户认证和登录设置", defaultRoles = { "admin" })
+@PermissionDef(code = "permission.view", name = "查看权限", description = "查看权限列表和分配情况", defaultRoles = { "admin",
+    "manager" })
+@PermissionDef(code = "permission.manage", name = "管理权限", description = "分配和撤销权限", defaultRoles = { "admin" })
+@PermissionDef(code = "security.view", name = "查看安全信息", description = "查看安全日志和统计", defaultRoles = { "admin",
+    "security" })
+@PermissionDef(code = "security.manage", name = "安全管理", description = "管理安全设置和黑名单", defaultRoles = { "admin" })
+// 声明一级菜单
+@MenuItem(id = "auth", title = "认证与权限", icon = "🔐", order = 30)
 @Controller
 @RequestMapping("/auth")
 @Intercepted({ "SystemRequestLog" }) // 插件级别的基础日志记录
@@ -1234,6 +1244,7 @@ public class AuthPlugin {
    * 权限管理主页
    */
   @GetMapping("/")
+  @MenuItem(title = "认证概览", parentId = "auth", order = 1, permissions = { "auth.manage" })
   public void getIndexPage(RoutingContext ctx) {
     try {
       // 获取统计数据
@@ -1306,6 +1317,7 @@ public class AuthPlugin {
    * 权限列表页面
    */
   @GetMapping("/permissions")
+  @MenuItem(title = "权限管理", parentId = "auth", order = 2, permissions = { "permission.manage" })
   public void getPermissionsPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();
@@ -1380,6 +1392,7 @@ public class AuthPlugin {
    */
   @GetMapping("/logs/page")
   @Intercepted({ "SimpleAuth" })
+  @MenuItem(title = "登录日志", parentId = "auth", order = 3, permissions = { "security.view" })
   public void renderLoginLogsPage(RoutingContext ctx) {
     LOG.debug("Rendering login logs page");
 

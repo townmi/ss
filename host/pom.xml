@@ -49,6 +49,9 @@
       <artifactId>annotations</artifactId>
     </dependency>
 
+    <!-- Interfaces -->
+    <!-- 移除了对业务接口的依赖，保持 Host 的纯技术性 -->
+    
     <!-- SLF4J API -->
     <dependency>
       <groupId>org.slf4j</groupId>

@@ -29,6 +29,13 @@ import java.util.Optional;
  * 用户管理插件
  */
 @Plugin(name = "User Plugin", version = "1.0.0", description = "管理系统用户，包括创建、查看、编辑用户信息", icon = "👤", mainPagePath = "/page/users/")
+// 声明权限定义
+@PermissionDef(code = "user.view", name = "查看用户", description = "查看用户列表和详情", defaultRoles = { "admin", "manager" })
+@PermissionDef(code = "user.create", name = "创建用户", description = "创建新用户", defaultRoles = { "admin" })
+@PermissionDef(code = "user.edit", name = "编辑用户", description = "编辑用户信息", defaultRoles = { "admin" })
+@PermissionDef(code = "user.delete", name = "删除用户", description = "删除用户", defaultRoles = { "admin" })
+// 声明一级菜单
+@MenuItem(id = "users", title = "用户管理", icon = "👤", order = 20)
 @Controller
 @RequestMapping("/")
 @Intercepted({ "SystemRequestLog" }) // 类级别：所有方法都使用系统请求日志拦截器
@@ -52,6 +59,7 @@ public class UserPlugin {
    */
   @GetMapping("/api/users")
   @Intercepted({ "SimpleAuth", "OperationLog" }) // 方法级别：需要认证和操作日志记录
+  @RequirePermission("user.view")
   public void getAllUsers(RoutingContext ctx) {
     try {
       List<User> users = userService.getAllUsers();
@@ -81,6 +89,7 @@ public class UserPlugin {
    */
   @GetMapping("/api/users/:id")
   @Intercepted({ "SimpleAuth", "OperationLog" })
+  @RequirePermission("user.view")
   public void getUserById(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
     LOG.debug("Getting user by ID: {}", userId);
@@ -112,6 +121,7 @@ public class UserPlugin {
    */
   @PostMapping("/api/users")
   @Intercepted({ "SimpleAuth", "OperationLog" })
+  @RequirePermission("user.create")
   public void createUser(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("Creating user with data: {}", body);
@@ -172,6 +182,8 @@ public class UserPlugin {
    * 更新用户
    */
   @RequestMapping(value = "/users/:id", method = "PUT")
+  @Intercepted({ "SimpleAuth", "OperationLog" })
+  @RequirePermission("user.edit")
   public void updateUser(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
     JsonObject body = ctx.getBodyAsJson();
@@ -236,6 +248,8 @@ public class UserPlugin {
    * 删除用户
    */
   @RequestMapping(value = "/users/:id", method = "DELETE")
+  @Intercepted({ "SimpleAuth", "OperationLog" })
+  @RequirePermission("user.delete")
   public void deleteUser(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
     LOG.debug("Deleting user: {}", userId);
@@ -299,6 +313,7 @@ public class UserPlugin {
    * 用户管理首页
    */
   @GetMapping("/page/users/")
+  @MenuItem(title = "用户概览", parentId = "users", order = 1, permissions = { "user.view" })
   public void getUserHomePage(RoutingContext ctx) {
     LOG.info("Rendering user management homepage...");
     try {
@@ -348,6 +363,7 @@ public class UserPlugin {
    * 用户列表页面 - 必须在 /:id 路由之前定义
    */
   @GetMapping("/page/users/list")
+  @MenuItem(title = "用户列表", parentId = "users", order = 2, permissions = { "user.view" })
   public void getUsersPage(RoutingContext ctx) {
     LOG.info("Rendering users page...");
     try {
@@ -387,6 +403,7 @@ public class UserPlugin {
    * 创建用户页面 - 必须在 /:id 路由之前定义
    */
   @GetMapping("/page/users/create")
+  @MenuItem(title = "创建用户", parentId = "users", order = 3, permissions = { "user.create" })
   public void getCreateUserPage(RoutingContext ctx) {
     try {
       Map<String, Object> data = new HashMap<>();

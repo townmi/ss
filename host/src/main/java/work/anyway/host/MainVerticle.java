@@ -28,6 +28,9 @@ public class MainVerticle extends AbstractVerticle {
   @Override
   public void start(Promise<Void> startPromise) {
     try {
+      // 设置 Vertx 实例到 Spring 配置中
+      SpringConfiguration.setVertxInstance(vertx);
+
       // 初始化 Spring Container
       initializeSpringContainer();
 

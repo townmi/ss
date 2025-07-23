@@ -24,6 +24,11 @@ import java.util.Map;
  * 系统级插件，提供主页和健康检查等功能
  */
 @Plugin(name = "System Plugin", version = "1.0.0", description = "系统管理插件，提供主页、健康检查等核心功能", icon = "⚙️", mainPagePath = "/page/")
+// 声明权限定义
+@PermissionDef(code = "system.view", name = "查看系统信息", description = "查看系统状态和信息", defaultRoles = { "admin", "manager" })
+@PermissionDef(code = "system.manage", name = "系统管理", description = "管理系统配置和插件", defaultRoles = { "admin" })
+// 声明一级菜单
+@MenuItem(id = "system", title = "系统管理", icon = "⚙️", order = 100)
 @Controller
 @RequestMapping("/")
 public class SystemPlugin {
@@ -68,6 +73,7 @@ public class SystemPlugin {
    * 处理主页请求
    */
   @GetMapping("/page/")
+  @MenuItem(title = "系统概览", parentId = "system", order = 1, permissions = { "system.view" })
   public void handleHomePage(RoutingContext ctx) {
     try {
       // 获取所有插件
@@ -214,6 +220,29 @@ public class SystemPlugin {
     } catch (Exception e) {
       LOG.error("Error rendering system logs page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
+    }
+  }
+
+  /**
+   * 菜单测试页面
+   */
+  @GetMapping("/page/menu-test")
+  @MenuItem(title = "菜单测试", parentId = "system", order = 10, permissions = { "system.view" })
+  public void menuTestPage(RoutingContext ctx) {
+    try {
+      Map<String, Object> data = new HashMap<>();
+      data.put("title", "菜单测试页面");
+      data.put("menuApiUrl", "/api/menus");
+
+      String html = renderTemplate("menu-test.mustache", data);
+      ctx.response()
+          .putHeader("content-type", "text/html; charset=utf-8")
+          .end(html);
+    } catch (Exception e) {
+      LOG.error("Failed to render menu test page", e);
+      ctx.response()
+          .setStatusCode(500)
+          .end("Internal Server Error: " + e.getMessage());
     }
   }
 

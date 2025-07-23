@@ -72,6 +72,16 @@
         <artifactId>annotations</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>work.anyway</groupId>
+        <artifactId>interfaces.auth</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>work.anyway</groupId>
+        <artifactId>interfaces.system</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       
       <!-- Lombok -->
       <dependency>

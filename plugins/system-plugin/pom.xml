@@ -23,6 +23,17 @@
       <artifactId>annotations</artifactId>
     </dependency>
     
+    <!-- Interfaces -->
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>interfaces.system</artifactId>
+    </dependency>
+    
+    <dependency>
+      <groupId>work.anyway</groupId>
+      <artifactId>interfaces.auth</artifactId>
+    </dependency>
+    
     <!-- Spring Core (provided by host) -->
     <dependency>
       <groupId>org.springframework</groupId>
