@@ -8,7 +8,6 @@ import work.anyway.interfaces.auth.PermissionInfo;
 import work.anyway.interfaces.auth.PermissionScanner;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 权限扫描器实现

@@ -26,7 +26,7 @@ import java.util.Date;
  * @since 1.0.0
  */
 @Service("syncDatabaseDataService")
-public class SyncDatabaseDataServiceImpl implements DataService, TypedDataService {
+public class SyncDatabaseDataServiceImpl implements TypedDataService {
 
   private static final Logger LOG = LoggerFactory.getLogger(SyncDatabaseDataServiceImpl.class);
 
@@ -446,18 +446,18 @@ public class SyncDatabaseDataServiceImpl implements DataService, TypedDataServic
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String table, Class<T> entityClass) {
     CollectionDef collectionDef = CollectionDef.builder(table).entityClass(entityClass).build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
     CollectionDef collectionDef = CollectionDef.builder(table)
         .dataSource(dataSource)
         .entityClass(entityClass)

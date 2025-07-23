@@ -11,7 +11,7 @@ import java.util.Optional;
  * @author 作者名
  * @since 1.0.0
  */
-public interface Repository<T extends Entity> {
+public interface Repository<T extends BaseEntity> {
 
   /**
    * 保存实体

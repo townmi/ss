@@ -2,7 +2,6 @@ package work.anyway.interfaces.data;
 
 import lombok.Data;
 import work.anyway.annotations.Column;
-import java.util.Date;
 
 /**
  * 实体基类
@@ -12,10 +11,7 @@ import java.util.Date;
  * @since 1.0.0
  */
 @Data
-public abstract class Entity extends BaseEntity {
-  @Column("created_at")
-  private Date createdAt;
-
-  @Column("updated_at")
-  private Date updatedAt;
+public abstract class BaseEntity {
+  @Column("id")
+  private String id;
 }

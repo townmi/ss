@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
  * @author 作者名
  * @since 1.0.0
  */
-public class RepositoryImpl<T extends Entity> implements Repository<T> {
+public class RepositoryImpl<T extends BaseEntity> implements Repository<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(RepositoryImpl.class);
 
@@ -46,9 +46,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
   public T save(T entity) {
     if (entity.getId() == null || entity.getId().isEmpty()) {
       entity.setId(UUID.randomUUID().toString());
-      entity.setCreatedAt(new Date());
     }
-    entity.setUpdatedAt(new Date());
 
     Map<String, Object> data = entityToMap(entity);
     Map<String, Object> saved = dataService.save(collectionDef.getFullName(), data);
@@ -126,8 +124,6 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
     if (entity.getId() == null || entity.getId().isEmpty()) {
       throw new IllegalArgumentException("Entity must have ID for update");
     }
-
-    entity.setUpdatedAt(new Date());
     Map<String, Object> data = entityToMap(entity);
 
     boolean success = dataService.update(collectionDef.getFullName(), entity.getId(), data);
@@ -153,9 +149,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
         .peek(entity -> {
           if (entity.getId() == null || entity.getId().isEmpty()) {
             entity.setId(UUID.randomUUID().toString());
-            entity.setCreatedAt(new Date());
           }
-          entity.setUpdatedAt(new Date());
         })
         .map(this::entityToMap)
         .collect(Collectors.toList());

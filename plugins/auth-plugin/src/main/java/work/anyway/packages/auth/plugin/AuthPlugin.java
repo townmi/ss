@@ -264,7 +264,7 @@ public class AuthPlugin {
     }
 
     try {
-      String email = body.getString("email");
+      String email = body.getString("identifier");
       String password = body.getString("password");
 
       if (securityService.isBlank(email)) {

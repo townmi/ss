@@ -17,7 +17,7 @@ public interface TypedDataService extends DataService {
    * @param <T>           实体类型参数
    * @return 类型安全的仓库实例
    */
-  <T extends Entity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass);
+  <T extends BaseEntity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass);
 
   /**
    * 使用默认数据源获取仓库
@@ -27,7 +27,7 @@ public interface TypedDataService extends DataService {
    * @param <T>         实体类型参数
    * @return 类型安全的仓库实例
    */
-  <T extends Entity> Repository<T> getRepository(String table, Class<T> entityClass);
+  <T extends BaseEntity> Repository<T> getRepository(String table, Class<T> entityClass);
 
   /**
    * 使用指定数据源获取仓库
@@ -38,5 +38,5 @@ public interface TypedDataService extends DataService {
    * @param <T>         实体类型参数
    * @return 类型安全的仓库实例
    */
-  <T extends Entity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass);
+  <T extends BaseEntity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass);
 }

@@ -29,20 +29,20 @@ public class EnhancedDataServiceImpl extends AsyncDatabaseDataServiceImpl {
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
     // 使用类型安全的 Repository 实现
     Pool pool = dataSourceManager.getPool(collectionDef.getDataSource());
     return new TypedRepositoryImpl<>(vertx, pool, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String table, Class<T> entityClass) {
     Pool pool = dataSourceManager.getDefaultPool();
     return new TypedRepositoryImpl<>(vertx, pool, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
     Pool pool = dataSourceManager.getPool(dataSource);
     return new TypedRepositoryImpl<>(vertx, pool, entityClass);
   }

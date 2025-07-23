@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * @author 作者名
  * @since 1.0.0
  */
-public class TypedRepositoryImpl<T extends Entity> implements Repository<T> {
+public class TypedRepositoryImpl<T extends BaseEntity> implements Repository<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TypedRepositoryImpl.class);
 
@@ -43,9 +43,7 @@ public class TypedRepositoryImpl<T extends Entity> implements Repository<T> {
   public T save(T entity) {
     if (entity.getId() == null || entity.getId().isEmpty()) {
       entity.setId(UUID.randomUUID().toString());
-      entity.setCreatedAt(new Date());
     }
-    entity.setUpdatedAt(new Date());
 
     CompletableFuture<T> future = new CompletableFuture<>();
 
@@ -240,8 +238,6 @@ public class TypedRepositoryImpl<T extends Entity> implements Repository<T> {
     if (entity.getId() == null || entity.getId().isEmpty()) {
       throw new IllegalArgumentException("Entity must have ID for update");
     }
-
-    entity.setUpdatedAt(new Date());
 
     CompletableFuture<Boolean> future = new CompletableFuture<>();
 

@@ -48,14 +48,12 @@ public class MainLauncher {
     // Set specific logger levels
     ConfigLoader.getProperties().forEach((key, value) -> {
       String keyStr = key.toString();
-      LOG.info("Setting logger '" + keyStr + "' to level: " + value.toString());
       if (keyStr.startsWith("logging.level.") && !keyStr.equals("logging.level")) {
         String loggerName = keyStr.substring("logging.level.".length());
         String level = value.toString();
 
         ch.qos.logback.classic.Logger logger = loggerContext.getLogger(loggerName);
         logger.setLevel(Level.toLevel(level));
-        LOG.info("Setting logger '" + loggerName + "' to level: " + level);
       }
     });
   }

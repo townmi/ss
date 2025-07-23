@@ -214,18 +214,18 @@ public class MemoryDataServiceImpl implements TypedDataService {
 
   // TypedDataService 实现
   @Override
-  public <T extends Entity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String table, Class<T> entityClass) {
     CollectionDef collectionDef = CollectionDef.builder(table).build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
     CollectionDef collectionDef = CollectionDef.builder(table).dataSource(dataSource).build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }

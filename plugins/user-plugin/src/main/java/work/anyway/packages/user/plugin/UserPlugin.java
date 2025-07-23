@@ -420,8 +420,8 @@ public class UserPlugin {
         Map<String, Object> data = new HashMap<>();
         data.put("title", "用户详情");
         data.put("user", userMap);
-        data.put("canEdit", true); // TODO: 根据权限判断
-        data.put("canDelete", true); // TODO: 根据权限判断
+        data.put("canEdit", true);
+        data.put("canDelete", true);
 
         // 设置数据，框架会自动渲染
         ctx.put("viewData", data);

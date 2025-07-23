@@ -33,12 +33,21 @@ public class ConfigLoader {
     // 1. 尝试从系统属性指定的文件加载
     String configFile = System.getProperty("config.file");
     if (configFile != null) {
+      // trim optional surrounding quotes
+      LOG.info("Loading configuration from: {}", configFile);
+      if (configFile.length() >= 2
+          && configFile.startsWith("\"")
+          && configFile.endsWith("\"")) {
+        configFile = configFile.substring(1, configFile.length() - 1);
+      }
       try (InputStream is = new FileInputStream(configFile)) {
         properties.load(is);
-        LOG.debug("Loaded configuration from: {}", configFile);
+        LOG.debug("Loaded configuration successfully  Properties: {}", properties);
       } catch (IOException e) {
         LOG.error("Failed to load config file: {}", configFile, e);
       }
+    } else {
+      LOG.info("No config file specified, using classpath");
     }
 
     // 2. 尝试从 classpath 加载
@@ -144,6 +153,6 @@ public class ConfigLoader {
    * 获取所有配置属性
    */
   public static Properties getProperties() {
-    return new Properties(properties);
+    return properties;
   }
 }

@@ -7,7 +7,6 @@ import io.vertx.sqlclient.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import work.anyway.interfaces.data.*;
 
@@ -492,18 +491,18 @@ public class AsyncDatabaseDataServiceImpl implements TypedDataService {
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(CollectionDef collectionDef, Class<T> entityClass) {
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String table, Class<T> entityClass) {
     CollectionDef collectionDef = CollectionDef.builder(table).entityClass(entityClass).build();
     return new RepositoryImpl<>(this, collectionDef, entityClass);
   }
 
   @Override
-  public <T extends Entity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
+  public <T extends BaseEntity> Repository<T> getRepository(String dataSource, String table, Class<T> entityClass) {
     CollectionDef collectionDef = CollectionDef.builder(table)
         .dataSource(dataSource)
         .entityClass(entityClass)

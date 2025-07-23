@@ -11,7 +11,7 @@ public class CollectionDef {
   private final String dataSource;
   private final String schema;
   private final String table;
-  private final Class<? extends Entity> entityClass;
+  private final Class<? extends BaseEntity> entityClass;
 
   private CollectionDef(Builder builder) {
     this.dataSource = builder.dataSource;
@@ -70,7 +70,7 @@ public class CollectionDef {
    * 
    * @return 实体类型
    */
-  public Class<? extends Entity> getEntityClass() {
+  public Class<? extends BaseEntity> getEntityClass() {
     return entityClass;
   }
 
@@ -91,7 +91,7 @@ public class CollectionDef {
     private final String table;
     private String dataSource;
     private String schema;
-    private Class<? extends Entity> entityClass;
+    private Class<? extends BaseEntity> entityClass;
 
     private Builder(String table) {
       if (table == null || table.isEmpty()) {
@@ -128,7 +128,7 @@ public class CollectionDef {
      * @param entityClass 实体类型
      * @return 当前构建器实例
      */
-    public Builder entityClass(Class<? extends Entity> entityClass) {
+    public Builder entityClass(Class<? extends BaseEntity> entityClass) {
       this.entityClass = entityClass;
       return this;
     }

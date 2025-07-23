@@ -25,9 +25,9 @@
       "file": "layouts/base.mustache",
       "description": "Standard layout with navigation and sidebar"
     },
-    "admin": {
-      "file": "layouts/admin.mustache",
-      "description": "Admin panel layout with enhanced navigation"
+    "auth": {
+      "file": "layouts/auth.mustache",
+      "description": "Auth panel layout with enhanced navigation"
     },
     "blank": {
       "file": "layouts/blank.mustache",

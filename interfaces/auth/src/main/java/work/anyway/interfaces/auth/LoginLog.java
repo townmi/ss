@@ -2,8 +2,7 @@ package work.anyway.interfaces.auth;
 
 import lombok.*;
 import work.anyway.annotations.*;
-import work.anyway.interfaces.data.Entity;
-import java.time.LocalDateTime;
+import work.anyway.interfaces.data.BaseEntity;
 import java.util.Date;
 
 /**
@@ -19,7 +18,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("login_logs")
-public class LoginLog extends Entity {
+public class LoginLog extends BaseEntity {
 
   @Column("user_id")
   private String userId; // 用户ID（成功登录时有值）
@@ -61,6 +60,9 @@ public class LoginLog extends Entity {
 
   @Column("login_duration")
   private Integer loginDuration; // 登录耗时（毫秒）
+
+  @Column("created_at")
+  private Date createdAt;
 
   public LoginLog(String identifier, String identifierType, String loginStatus, String clientIp) {
     this.identifier = identifier;
