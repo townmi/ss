@@ -1,0 +1,41 @@
+<div class="navbar-inner">
+    <div class="navbar-brand">
+        <a href="/page/">{{systemName}}</a>
+    </div>
+    
+    <div class="navbar-menu">
+        <div class="navbar-start">
+            <!-- 主导航菜单 -->
+            {{#menus}}
+            {{#isTopLevel}}
+            <a href="{{path}}" class="navbar-item {{#isActive}}is-active{{/isActive}}">
+                <span class="icon">{{icon}}</span>
+                <span>{{title}}</span>
+            </a>
+            {{/isTopLevel}}
+            {{/menus}}
+        </div>
+        
+        <div class="navbar-end">
+            {{#currentUser}}
+            <div class="navbar-item has-dropdown">
+                <a class="navbar-link">
+                    <span class="icon">👤</span>
+                    <span>{{userEmail}}</span>
+                </a>
+                <div class="navbar-dropdown">
+                    <a href="/page/profile" class="navbar-item">个人资料</a>
+                    <a href="/page/settings" class="navbar-item">设置</a>
+                    <hr class="navbar-divider">
+                    <a href="/api/auth/logout" class="navbar-item">退出登录</a>
+                </div>
+            </div>
+            {{/currentUser}}
+            
+            {{^currentUser}}
+            <a href="/auth/login" class="navbar-item">登录</a>
+            <a href="/auth/register" class="navbar-item">注册</a>
+            {{/currentUser}}
+        </div>
+    </div>
+</div> 

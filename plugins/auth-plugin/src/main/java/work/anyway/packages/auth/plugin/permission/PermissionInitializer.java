@@ -12,6 +12,9 @@ import work.anyway.interfaces.auth.PermissionScanner;
 import work.anyway.interfaces.auth.PermissionService;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 权限初始化器
@@ -87,10 +90,11 @@ public class PermissionInitializer {
     int created = 0;
     int updated = 0;
     int roleAssignments = 0;
+    int skipped = 0;
 
+    // 1. 首先注册所有权限
     for (PermissionInfo perm : permissions) {
       try {
-        // 1. 注册权限（如果不存在则创建，存在则更新）
         boolean isNew = registerPermissionWithPlugin(perm);
 
         if (isNew) {
@@ -100,29 +104,61 @@ public class PermissionInitializer {
           updated++;
           LOG.debug("Updated existing permission: {} - {}", perm.getCode(), perm.getName());
         }
-
-        // 2. 为默认角色分配权限
-        for (String role : perm.getDefaultRoles()) {
-          try {
-            boolean assigned = permissionService.grantPermissionToRole(role, perm.getCode());
-            if (assigned) {
-              roleAssignments++;
-              LOG.debug("Granted permission {} to role {}", perm.getCode(), role);
-            }
-          } catch (Exception e) {
-            LOG.warn("Failed to grant permission {} to role {}: {}",
-                perm.getCode(), role, e.getMessage());
-          }
-        }
-
       } catch (Exception e) {
-        LOG.error("Failed to initialize permission: {} - {}",
+        LOG.error("Failed to register permission: {} - {}",
             perm.getCode(), perm.getName(), e);
+        skipped++;
       }
     }
 
-    LOG.info("Permission initialization summary: {} created, {} updated, {} role assignments",
-        created, updated, roleAssignments);
+    // 2. 批量处理角色权限分配
+    Map<String, List<String>> rolePermissionsMap = new HashMap<>();
+
+    // 收集所有需要分配的角色权限
+    for (PermissionInfo perm : permissions) {
+      for (String role : perm.getDefaultRoles()) {
+        rolePermissionsMap.computeIfAbsent(role, k -> new ArrayList<>())
+            .add(perm.getCode());
+      }
+    }
+
+    // 批量授权
+    if (!rolePermissionsMap.isEmpty()) {
+      try {
+        // 使用反射调用批量方法（如果存在）
+        if (permissionService instanceof work.anyway.packages.auth.PermissionServiceImpl) {
+          work.anyway.packages.auth.PermissionServiceImpl impl = (work.anyway.packages.auth.PermissionServiceImpl) permissionService;
+          roleAssignments = impl.batchGrantPermissionsToRoles(rolePermissionsMap);
+          LOG.info("Batch granted {} role permissions", roleAssignments);
+        } else {
+          // 降级到单个授权（保持兼容性）
+          for (Map.Entry<String, List<String>> entry : rolePermissionsMap.entrySet()) {
+            String role = entry.getKey();
+            for (String permCode : entry.getValue()) {
+              try {
+                boolean assigned = permissionService.grantPermissionToRole(role, permCode);
+                if (assigned) {
+                  roleAssignments++;
+                  LOG.debug("Granted permission {} to role {}", permCode, role);
+                } else {
+                  LOG.trace("Permission {} already granted to role {}", permCode, role);
+                }
+              } catch (Exception e) {
+                if (!isExpectedError(e)) {
+                  LOG.warn("Failed to grant permission {} to role {}: {}",
+                      permCode, role, e.getMessage());
+                }
+              }
+            }
+          }
+        }
+      } catch (Exception e) {
+        LOG.error("Failed to batch grant permissions", e);
+      }
+    }
+
+    LOG.info("Permission initialization summary: {} created, {} updated, {} role assignments, {} skipped",
+        created, updated, roleAssignments, skipped);
   }
 
   /**
@@ -148,5 +184,26 @@ public class PermissionInitializer {
     initializePermissions(permissions);
 
     LOG.info("Manual permission reinitialization completed");
+  }
+
+  /**
+   * 检查是否是预期的错误（如重复键错误）
+   */
+  private boolean isExpectedError(Exception e) {
+    Throwable cause = e;
+
+    // 解包异常
+    while (cause != null) {
+      String message = cause.getMessage();
+      if (message != null &&
+          (message.contains("Duplicate entry") ||
+              message.contains("unique_role_permission") ||
+              message.contains("errorCode=1062"))) {
+        return true;
+      }
+      cause = cause.getCause();
+    }
+
+    return false;
   }
 }

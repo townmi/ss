@@ -35,7 +35,7 @@ public class ConfigLoader {
     if (configFile != null) {
       try (InputStream is = new FileInputStream(configFile)) {
         properties.load(is);
-        LOG.info("Loaded configuration from: {}", configFile);
+        LOG.debug("Loaded configuration from: {}", configFile);
       } catch (IOException e) {
         LOG.error("Failed to load config file: {}", configFile, e);
       }
@@ -45,7 +45,7 @@ public class ConfigLoader {
     try (InputStream is = ConfigLoader.class.getResourceAsStream("/application.properties")) {
       if (is != null) {
         properties.load(is);
-        LOG.info("Loaded configuration from classpath");
+        LOG.debug("Loaded configuration from classpath");
       }
     } catch (IOException e) {
       LOG.error("Failed to load configuration from classpath", e);
@@ -114,11 +114,11 @@ public class ConfigLoader {
       if (keyStr.startsWith("datasource.")) {
         System.setProperty(keyStr, value.toString());
         String displayValue = keyStr.contains("password") ? "******" : value.toString();
-        LOG.info("  Setting system property: {} = {}", keyStr, displayValue);
+        LOG.debug("  Setting system property: {} = {}", keyStr, displayValue);
         count[0]++;
       }
     });
-    LOG.info("Propagated {} datasource configuration(s) to system properties", count[0]);
+    LOG.debug("Propagated {} datasource configuration(s) to system properties", count[0]);
   }
 
   /**
@@ -133,11 +133,11 @@ public class ConfigLoader {
           keyStr.startsWith("login.logs.") ||
           keyStr.startsWith("login.attempts.")) {
         System.setProperty(keyStr, value.toString());
-        LOG.info("  Setting login security property: {} = {}", keyStr, value.toString());
+        LOG.debug("  Setting login security property: {} = {}", keyStr, value.toString());
         count[0]++;
       }
     });
-    LOG.info("Propagated {} login security configuration(s) to system properties", count[0]);
+    LOG.debug("Propagated {} login security configuration(s) to system properties", count[0]);
   }
 
   /**

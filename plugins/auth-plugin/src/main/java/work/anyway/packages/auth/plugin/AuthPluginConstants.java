@@ -45,14 +45,6 @@ public final class AuthPluginConstants {
   public static final int MAX_REGISTRATION_ATTEMPTS_PER_HOUR = 5;
   public static final int RATE_LIMIT_WINDOW_SECONDS = 60;
 
-  // 预定义权限
-  public static final String[] DEFAULT_PERMISSIONS = {
-      "user.create", "user.read", "user.update", "user.delete",
-      "admin.access", "admin.manage",
-      "system.config", "system.monitor",
-      "report.view", "report.export"
-  };
-
   private AuthPluginConstants() {
     // 防止实例化
   }

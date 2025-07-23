@@ -1,408 +1,207 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>插件管理系统</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<div class="page-header">
+    <h1>系统概览</h1>
+    <p>欢迎使用 Direct-LLM-Rask 插件管理系统</p>
+</div>
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .breadcrumb {
-            background-color: #fff;
-            padding: 12px 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .breadcrumb-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .breadcrumb ul {
-            list-style: none;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            margin: 0;
-            padding: 0;
-        }
-
-        .breadcrumb li {
-            display: flex;
-            align-items: center;
-        }
-
-        .breadcrumb li:not(:last-child)::after {
-            content: '/';
-            margin: 0 10px;
-            color: #999;
-        }
-
-        .nav-bar {
-            background-color: #fff;
-            padding: 0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }
-
-        .nav-bar-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            margin-left: auto;
-        }
-
-        .nav-links a {
-            color: #666;
-            text-decoration: none;
-            padding: 1rem 0;
-            border-bottom: 2px solid transparent;
-            transition: all 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: #4a5568;
-            border-bottom-color: #667eea;
-        }
-
-        .nav-links a.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .breadcrumb a {
-            color: #007bff;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .breadcrumb a:hover {
-            color: #0056b3;
-            text-decoration: underline;
-        }
-
-        .breadcrumb .current {
-            color: #666;
-            font-weight: 500;
-        }
-
-        .hero {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .hero h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-
-        .hero p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
-        .plugins-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 30px;
-            margin-top: 20px;
-        }
-
-        .plugin-card {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-            border: 1px solid #e5e7eb;
-        }
-
-        .plugin-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-        }
-
-        .plugin-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .plugin-icon {
-            font-size: 2.5rem;
-            margin-right: 15px;
-        }
-
-        .plugin-info h3 {
-            color: #2c3e50;
-            font-size: 1.4rem;
-            margin-bottom: 5px;
-        }
-
-        .plugin-version {
-            color: #7f8c8d;
-            font-size: 0.9rem;
-        }
-
-        .plugin-description {
-            color: #5a6c7d;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .plugin-action {
-            display: inline-block;
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .plugin-action:hover {
-            background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-        }
-
-        .plugin-inactive {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-
-        .plugin-inactive:hover {
-            background-color: #95a5a6;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #7f8c8d;
-        }
-
-        .empty-state h2 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-            color: #5a6c7d;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        .stat-label {
-            color: #7f8c8d;
-            font-size: 0.9rem;
-            margin-top: 5px;
-        }
-
-        .quick-auth {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            margin: 40px 0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .quick-auth h2 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-        }
-
-        .auth-actions {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .auth-btn {
-            display: inline-block;
-            padding: 12px 24px;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            color: white;
-        }
-
-        .login-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .register-btn {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        }
-
-        .register-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
-        }
-
-        .manage-btn {
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-        }
-
-        .manage-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
-        }
-
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2rem;
-            }
-            
-            .plugins-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .auth-actions {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .auth-btn {
-                width: 200px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <nav class="breadcrumb">
-        <div class="breadcrumb-inner">
-            <ul>
-                <li class="current">首页</li>
-            </ul>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+            <div class="stat-value">{{pluginCount}}</div>
+            <div class="stat-label">已加载插件</div>
         </div>
-    </nav>
-
-    <nav class="nav-bar">
-        <div class="nav-bar-inner">
-            <div class="nav-links">
-                <a href="/page/" class="active">插件中心</a>
-                <a href="/system/info">系统信息</a>
-                <a href="/plugins/manage">插件管理</a>
-                <a href="/logs/system">系统日志</a>
-                <a href="/health">健康检查</a>
-            </div>
-        </div>
-    </nav>
+    </div>
     
-    <div class="hero">
-        <div class="container">
-            <h1>插件管理系统</h1>
-            <p>简单、高效、可扩展的插件化架构</p>
+    <div class="stat-card">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-content">
+            <div class="stat-value">运行中</div>
+            <div class="stat-label">系统状态</div>
         </div>
     </div>
-
-    <div class="container">
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-value">{{pluginCount}}</div>
-                <div class="stat-label">已加载插件</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">✅</div>
-                <div class="stat-label">系统状态</div>
-            </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">🔧</div>
+        <div class="stat-content">
+            <div class="stat-value">{{totalPluginCount}}</div>
+            <div class="stat-label">总插件数</div>
         </div>
+    </div>
+</div>
 
-        <div class="quick-auth">
-            <h2>快速认证</h2>
-            <div class="auth-actions">
-                <a href="/auth/login" class="auth-btn login-btn">🔑 登录</a>
-                <a href="/auth/register" class="auth-btn register-btn">📝 注册</a>
-                <a href="/auth/" class="auth-btn manage-btn">⚙️ 权限管理</a>
+{{#hasPlugins}}
+<div class="section">
+    <h2 class="section-title">已安装插件</h2>
+    <div class="plugin-grid">
+        {{#plugins}}
+        <div class="plugin-card">
+            <div class="plugin-header">
+                <span class="plugin-icon">{{icon}}</span>
+                <h3 class="plugin-name">{{name}}</h3>
             </div>
-        </div>
-
-        {{#hasPlugins}}
-        <div class="plugins-grid">
-            {{#plugins}}
-            <div class="plugin-card">
-                <div class="plugin-header">
-                    <div class="plugin-icon">{{icon}}</div>
-                    <div class="plugin-info">
-                        <h3>{{name}}</h3>
-                        <div class="plugin-version">版本 {{version}}</div>
-                    </div>
-                </div>
-                <p class="plugin-description">{{description}}</p>
+            <p class="plugin-description">{{description}}</p>
+            <div class="plugin-footer">
+                <span class="plugin-version">v{{version}}</span>
                 {{#hasPage}}
-                <a href="{{pageUrl}}" class="plugin-action">进入管理</a>
-                {{/hasPage}}
-                {{^hasPage}}
-                <span class="plugin-action plugin-inactive">无管理界面</span>
+                <a href="{{pageUrl}}" class="plugin-link">访问插件</a>
                 {{/hasPage}}
             </div>
-            {{/plugins}}
         </div>
-        {{/hasPlugins}}
-
-        {{^hasPlugins}}
-        <div class="empty-state">
-            <h2>暂无插件</h2>
-            <p>请将插件 JAR 文件放置到 libs/plugins 目录并重启系统</p>
-        </div>
-        {{/hasPlugins}}
+        {{/plugins}}
     </div>
-</body>
-</html> 
+</div>
+{{/hasPlugins}}
+
+{{^hasPlugins}}
+<div class="empty-state">
+    <div class="empty-icon">📦</div>
+    <h3>暂无插件</h3>
+    <p>系统中还没有加载任何插件</p>
+</div>
+{{/hasPlugins}}
+
+<style>
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-header p {
+        color: #718096;
+        font-size: 1.1rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .stat-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1a202c;
+    }
+    
+    .stat-label {
+        color: #718096;
+        font-size: 0.875rem;
+    }
+    
+    .section {
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 1.5rem;
+    }
+    
+    .plugin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .plugin-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .plugin-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .plugin-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .plugin-icon {
+        font-size: 2rem;
+    }
+    
+    .plugin-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a202c;
+    }
+    
+    .plugin-description {
+        color: #4a5568;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+    
+    .plugin-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .plugin-version {
+        color: #718096;
+        font-size: 0.875rem;
+    }
+    
+    .plugin-link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+    
+    .plugin-link:hover {
+        color: #5a67d8;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.5rem;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: #718096;
+    }
+</style> 

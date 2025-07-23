@@ -1,143 +1,215 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>权限管理</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f5f5f5;
-    }
-    
-    .breadcrumb {
-      background-color: #fff;
-      padding: 12px 20px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
+<div class="page-header">
+    <h1>🔑 权限管理</h1>
+    <p>管理系统权限，为用户和角色分配相应的访问权限</p>
+</div>
 
-    .breadcrumb-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .breadcrumb ul {
-      list-style: none;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      margin: 0;
-      padding: 0;
-    }
-
-    .breadcrumb li {
-      display: flex;
-      align-items: center;
-    }
-
-    .breadcrumb li:not(:last-child)::after {
-      content: '/';
-      margin: 0 10px;
-      color: #999;
-    }
-
-    .breadcrumb a {
-      color: #007bff;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .breadcrumb a:hover {
-      color: #0056b3;
-      text-decoration: underline;
-    }
-
-    .breadcrumb .current {
-      color: #666;
-      font-weight: 500;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-    }
-    .search-box {
-      margin-bottom: 20px;
-    }
-    .search-box input {
-      width: 300px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .permissions-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 15px;
-    }
-    .permission-card {
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 15px;
-      background: #fafafa;
-    }
-    .permission-name {
-      font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 5px;
-    }
-    .permission-desc {
-      color: #666;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <nav class="breadcrumb">
-    <div class="breadcrumb-inner">
-      <ul>
-        <li><a href="/page/">首页</a></li>
-        <li><a href="/page/auth/">权限管理</a></li>
-        <li class="current">权限列表</li>
-      </ul>
-    </div>
-  </nav>
-  
-  <div class="container">
-    <h1>权限管理</h1>
-    
-    <div class="search-box">
-      <input type="text" id="userIdInput" placeholder="输入用户ID查看权限">
-      <button onclick="viewUserPermissions()">查看用户权限</button>
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">权限列表 ({{permissionCount}})</h2>
+        <div class="section-actions">
+            <button class="btn btn-primary" onclick="showAddPermissionDialog()">
+                <span class="btn-icon">➕</span> 添加权限
+            </button>
+        </div>
     </div>
     
-    <h2>可用权限列表</h2>
-    <div class="permissions-list">
-      {{#availablePermissions}}
-      <div class="permission-card">
-        <div class="permission-name">{{.}}</div>
-        <div class="permission-desc">权限描述</div>
-      </div>
-      {{/availablePermissions}}
+    <div class="permission-grid">
+        {{#permissions}}
+        <div class="permission-card {{^isActive}}inactive{{/isActive}}">
+            <div class="permission-header">
+                <div class="permission-icon">🔐</div>
+                <div class="permission-info">
+                    <h3 class="permission-code">{{code}}</h3>
+                    <p class="permission-name">{{name}}</p>
+                </div>
+            </div>
+            {{#description}}
+            <p class="permission-description">{{description}}</p>
+            {{/description}}
+            {{#pluginName}}
+            <div class="permission-meta">
+                <span class="meta-label">插件：</span>
+                <span class="meta-value">{{pluginName}}</span>
+            </div>
+            {{/pluginName}}
+            <div class="permission-actions">
+                <button class="btn btn-sm btn-primary" onclick="managePermission('{{code}}')">
+                    管理
+                </button>
+                {{^isActive}}
+                <span class="status-badge inactive">已禁用</span>
+                {{/isActive}}
+            </div>
+        </div>
+        {{/permissions}}
+        {{^permissions}}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无权限数据</p>
+            <p class="empty-hint">系统权限将在插件加载时自动注册</p>
+        </div>
+        {{/permissions}}
     </div>
-  </div>
-  
-  <script>
-    function viewUserPermissions() {
-      const userId = document.getElementById('userIdInput').value;
-      if (userId) {
-        window.location.href = '/page/auth/user/' + userId;
-      }
-    }
-  </script>
-</body>
-</html> 
+</div>
+
+<div class="section">
+    <h2 class="section-title">快速操作</h2>
+    <div class="action-buttons">
+        <button class="btn btn-secondary" onclick="showBatchAssignDialog()">
+            <span class="btn-icon">📋</span> 批量分配
+        </button>
+        <button class="btn btn-secondary" onclick="refreshPermissions()">
+            <span class="btn-icon">🔄</span> 刷新列表
+        </button>
+        <button class="btn btn-secondary" onclick="showImportDialog()">
+            <span class="btn-icon">📥</span> 导入权限
+        </button>
+    </div>
+</div>
+
+<style>
+/* 权限管理特定样式 */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.permission-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.permission-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s;
+}
+
+.permission-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.permission-card.inactive {
+    opacity: 0.7;
+    background: #f8f9fa;
+}
+
+.permission-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.permission-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.permission-info {
+    flex: 1;
+}
+
+.permission-code {
+    font-family: monospace;
+    font-size: 1rem;
+    color: #495057;
+    margin: 0 0 5px 0;
+}
+
+.permission-name {
+    font-size: 1.1rem;
+    color: #333;
+    margin: 0;
+    font-weight: 500;
+}
+
+.permission-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin: 10px 0;
+    line-height: 1.4;
+}
+
+.permission-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 10px 0;
+}
+
+.meta-label {
+    font-weight: 500;
+}
+
+.permission-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.status-badge.inactive {
+    background: #dc3545;
+    color: white;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.btn-icon {
+    margin-right: 5px;
+}
+
+.empty-hint {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-top: 10px;
+}
+</style>
+
+<script>
+function managePermission(permissionCode) {
+    // 跳转到权限详情页面
+    window.location.href = `/auth/permissions/${encodeURIComponent(permissionCode)}`;
+}
+
+function showAddPermissionDialog() {
+    // TODO: 显示添加权限对话框
+    alert('添加权限功能开发中...\n\n注意：权限通常通过 @PermissionDef 注解自动注册');
+}
+
+function showBatchAssignDialog() {
+    // TODO: 显示批量分配对话框
+    alert('批量分配功能开发中...');
+}
+
+function showImportDialog() {
+    // TODO: 显示导入对话框
+    alert('导入权限功能开发中...');
+}
+
+function refreshPermissions() {
+    window.location.reload();
+}
+</script> 

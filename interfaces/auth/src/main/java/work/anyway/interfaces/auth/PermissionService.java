@@ -1,6 +1,7 @@
 package work.anyway.interfaces.auth;
 
 import java.util.Set;
+import java.util.List;
 
 /**
  * 权限服务接口
@@ -45,4 +46,11 @@ public interface PermissionService {
    * @return 是否授权成功
    */
   boolean grantPermissionToRole(String role, String permission);
+
+  /**
+   * 获取系统中所有的权限
+   * 
+   * @return 所有权限的列表
+   */
+  List<Permission> getAllPermissions();
 }

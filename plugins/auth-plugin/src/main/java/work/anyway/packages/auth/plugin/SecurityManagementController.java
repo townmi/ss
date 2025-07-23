@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Collections;
 
 import static work.anyway.packages.auth.plugin.AuthPluginConstants.*;
 
@@ -51,6 +52,9 @@ public class SecurityManagementController extends BaseAuthController {
    * 渲染安全统计页面
    */
   @GetMapping("/stats/page")
+  @MenuItem(title = "安全统计", parentId = "auth", order = 5, permissions = { "security.view" })
+  @RenderTemplate("security-stats")
+  @Intercepted({ "TemplateRendering" })
   public void renderSecurityStatsPage(RoutingContext ctx) {
     LOG.debug("Rendering security stats page");
 
@@ -60,13 +64,11 @@ public class SecurityManagementController extends BaseAuthController {
       data.put("currentUserId", getCurrentUserId(ctx));
       data.put("currentUserRole", getCurrentUserRole(ctx));
 
-      String html = renderTemplate("security-stats.mustache", data);
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render security stats page", e);
-      sendError(ctx, 500, "Failed to render security stats page: " + e.getMessage());
+      LOG.error("Failed to prepare security stats page data", e);
+      sendError(ctx, 500, "Failed to prepare security stats page: " + e.getMessage());
     }
   }
 
@@ -74,6 +76,9 @@ public class SecurityManagementController extends BaseAuthController {
    * 渲染被锁定账户页面
    */
   @GetMapping("/locked-accounts/page")
+  @MenuItem(title = "锁定账户", parentId = "auth", order = 6, permissions = { "security.manage" })
+  @RenderTemplate("locked-accounts")
+  @Intercepted({ "TemplateRendering" })
   public void renderLockedAccountsPage(RoutingContext ctx) {
     LOG.debug("Rendering locked accounts page");
 
@@ -83,13 +88,11 @@ public class SecurityManagementController extends BaseAuthController {
       data.put("currentUserId", getCurrentUserId(ctx));
       data.put("currentUserRole", getCurrentUserRole(ctx));
 
-      String html = renderTemplate("locked-accounts.mustache", data);
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render locked accounts page", e);
-      sendError(ctx, 500, "Failed to render locked accounts page: " + e.getMessage());
+      LOG.error("Failed to prepare locked accounts page data", e);
+      sendError(ctx, 500, "Failed to prepare locked accounts page: " + e.getMessage());
     }
   }
 
@@ -97,6 +100,9 @@ public class SecurityManagementController extends BaseAuthController {
    * 渲染IP黑名单页面
    */
   @GetMapping("/blacklist/page")
+  @MenuItem(title = "IP黑名单", parentId = "auth", order = 7, permissions = { "security.manage" })
+  @RenderTemplate("ip-blacklist")
+  @Intercepted({ "TemplateRendering" })
   public void renderBlacklistPage(RoutingContext ctx) {
     LOG.debug("Rendering IP blacklist page");
 
@@ -106,13 +112,11 @@ public class SecurityManagementController extends BaseAuthController {
       data.put("currentUserId", getCurrentUserId(ctx));
       data.put("currentUserRole", getCurrentUserRole(ctx));
 
-      String html = renderTemplate("ip-blacklist.mustache", data);
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render IP blacklist page", e);
-      sendError(ctx, 500, "Failed to render IP blacklist page: " + e.getMessage());
+      LOG.error("Failed to prepare IP blacklist page data", e);
+      sendError(ctx, 500, "Failed to prepare IP blacklist page: " + e.getMessage());
     }
   }
 
@@ -588,6 +592,8 @@ public class SecurityManagementController extends BaseAuthController {
    * GET /auth/admin/security/page
    */
   @GetMapping("/page")
+  @RenderTemplate("security-dashboard")
+  @Intercepted({ "TemplateRendering" })
   public void getSecurityStatsPage(RoutingContext ctx) {
     LOG.debug("Rendering security stats page");
 
@@ -647,17 +653,11 @@ public class SecurityManagementController extends BaseAuthController {
         data.put("topActiveIps", Map.of("items", ipItems));
       }
 
-      String html = renderTemplate("security-stats.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render security stats page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
+      LOG.error("Failed to prepare security stats page data", e);
+      sendError(ctx, 500, "Failed to prepare security stats page: " + e.getMessage());
     }
   }
 
@@ -666,6 +666,8 @@ public class SecurityManagementController extends BaseAuthController {
    * GET /auth/admin/security/locked
    */
   @GetMapping("/locked")
+  @RenderTemplate("locked-accounts")
+  @Intercepted({ "TemplateRendering" })
   public void getLockedAccountsPage(RoutingContext ctx) {
     LOG.debug("Rendering locked accounts page");
 
@@ -695,16 +697,12 @@ public class SecurityManagementController extends BaseAuthController {
           accountItems.add(item);
         }
         data.put("lockedAccounts", accountItems);
-        data.put("hasLockedAccounts", true);
       } else {
-        data.put("hasLockedAccounts", false);
+        data.put("lockedAccounts", Collections.emptyList());
       }
 
-      String html = renderTemplate("locked-accounts.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
 
     } catch (Exception e) {
       LOG.error("Failed to render locked accounts page", e);
@@ -736,9 +734,9 @@ public class SecurityManagementController extends BaseAuthController {
   }
 
   private String getRiskLevel(int riskScore) {
-    if (riskScore >= 70)
+    if (riskScore >= 80)
       return "high";
-    if (riskScore >= 40)
+    if (riskScore >= 50)
       return "medium";
     return "low";
   }

@@ -25,6 +25,7 @@ import work.anyway.interfaces.user.AccountService;
 import work.anyway.interfaces.user.AccountType;
 import work.anyway.interfaces.user.UserAccount;
 import work.anyway.packages.auth.plugin.utils.JwtTokenUtil;
+import work.anyway.interfaces.auth.Permission;
 
 import java.io.InputStream;
 import java.io.StringWriter;
@@ -86,13 +87,6 @@ public class AuthPlugin {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
-
-  // 预定义的权限列表
-  private static final List<String> AVAILABLE_PERMISSIONS = Arrays.asList(
-      "user.create", "user.read", "user.update", "user.delete",
-      "admin.access", "admin.manage",
-      "system.config", "system.monitor",
-      "report.view", "report.export");
 
   // 认证 API 端点
 
@@ -979,68 +973,41 @@ public class AuthPlugin {
    * 登录页面
    */
   @GetMapping("/login")
+  @RenderTemplate(value = "login", layout = "auth")
+  @Intercepted({ "TemplateRendering" })
   public void getLoginPage(RoutingContext ctx) {
-    try {
-      Map<String, Object> data = new HashMap<>();
-      data.put("title", "用户登录");
-      data.put("redirectUrl", ctx.request().getParam("redirect"));
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "用户登录");
+    data.put("redirectUrl", ctx.request().getParam("redirect"));
 
-      String html = renderTemplate("login.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-    } catch (Exception e) {
-      LOG.error("Failed to render login page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
-    }
+    ctx.put("viewData", data);
   }
 
   /**
    * 注册页面
    */
   @GetMapping("/register")
+  @RenderTemplate(value = "register", layout = "auth")
+  @Intercepted({ "TemplateRendering" })
   public void getRegisterPage(RoutingContext ctx) {
-    try {
-      Map<String, Object> data = new HashMap<>();
-      data.put("title", "用户注册");
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "用户注册");
 
-      String html = renderTemplate("register.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-    } catch (Exception e) {
-      LOG.error("Failed to render register page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
-    }
+    ctx.put("viewData", data);
   }
 
   /**
    * 忘记密码页面
    */
   @GetMapping("/forgot-password")
+  @RenderTemplate(value = "forgot-password", layout = "auth")
+  @Intercepted({ "TemplateRendering" })
   public void getForgotPasswordPage(RoutingContext ctx) {
-    try {
-      Map<String, Object> data = new HashMap<>();
-      data.put("title", "忘记密码");
-      data.put("email", ctx.request().getParam("email")); // 支持预填邮箱
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "忘记密码");
+    data.put("email", ctx.request().getParam("email")); // 支持预填邮箱
 
-      String html = renderTemplate("forgot-password.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-    } catch (Exception e) {
-      LOG.error("Failed to render forgot password page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
-    }
+    ctx.put("viewData", data);
   }
 
   /**
@@ -1229,13 +1196,33 @@ public class AuthPlugin {
    */
   @GetMapping("/permissions/available")
   public void getAvailablePermissions(RoutingContext ctx) {
-    JsonObject response = new JsonObject()
-        .put("success", true)
-        .put("permissions", new JsonArray(AVAILABLE_PERMISSIONS));
+    try {
+      // 从权限服务获取所有权限
+      List<Permission> permissions = permissionService.getAllPermissions();
 
-    ctx.response()
-        .putHeader("content-type", "application/json")
-        .end(response.encode());
+      // 转换为 JSON 数组
+      JsonArray permissionArray = new JsonArray();
+      for (Permission permission : permissions) {
+        JsonObject permObj = new JsonObject()
+            .put("code", permission.getCode())
+            .put("name", permission.getName())
+            .put("description", permission.getDescription())
+            .put("pluginName", permission.getPluginName())
+            .put("isActive", permission.getIsActive());
+        permissionArray.add(permObj);
+      }
+
+      JsonObject response = new JsonObject()
+          .put("success", true)
+          .put("permissions", permissionArray);
+
+      ctx.response()
+          .putHeader("content-type", "application/json")
+          .end(response.encode());
+    } catch (Exception e) {
+      LOG.error("Failed to get available permissions", e);
+      sendError(ctx, 500, "Failed to retrieve permissions: " + e.getMessage());
+    }
   }
 
   // 页面路由
@@ -1245,10 +1232,12 @@ public class AuthPlugin {
    */
   @GetMapping("/")
   @MenuItem(title = "认证概览", parentId = "auth", order = 1, permissions = { "auth.manage" })
+  @RenderTemplate("auth-dashboard")
   public void getIndexPage(RoutingContext ctx) {
     try {
       // 获取统计数据
       Map<String, Object> data = new HashMap<>();
+      data.put("title", "认证概览");
       data.put("pluginName", "Auth Plugin");
       data.put("pluginVersion", "1.0.0");
 
@@ -1285,18 +1274,12 @@ public class AuthPlugin {
 
       // 最近活动（示例数据）
       List<Map<String, Object>> recentActivities = new ArrayList<>();
-      recentActivities.add(createActivity("用户登录成功", "user@example.com", "success", "✓", "5分钟前"));
-      recentActivities.add(createActivity("登录失败", "test@example.com", "warning", "⚠", "10分钟前"));
-      recentActivities.add(createActivity("账户被锁定", "admin@example.com", "danger", "🔒", "15分钟前"));
       data.put("recentActivities", recentActivities);
 
-      String html = renderTemplate("auth-dashboard.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render auth dashboard", e);
+      LOG.error("Failed to prepare auth dashboard data", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -1318,18 +1301,34 @@ public class AuthPlugin {
    */
   @GetMapping("/permissions")
   @MenuItem(title = "权限管理", parentId = "auth", order = 2, permissions = { "permission.manage" })
+  @RenderTemplate("permissions")
+  @Intercepted({ "TemplateRendering" })
   public void getPermissionsPage(RoutingContext ctx) {
     try {
+      // 从权限服务获取所有权限
+      List<Permission> permissions = permissionService.getAllPermissions();
+
+      // 转换为页面显示需要的格式
+      List<Map<String, Object>> permissionList = new ArrayList<>();
+      for (Permission permission : permissions) {
+        Map<String, Object> permMap = new HashMap<>();
+        permMap.put("code", permission.getCode());
+        permMap.put("name", permission.getName());
+        permMap.put("description", permission.getDescription());
+        permMap.put("pluginName", permission.getPluginName());
+        permMap.put("isActive", permission.getIsActive());
+        permissionList.add(permMap);
+      }
+
       Map<String, Object> data = new HashMap<>();
-      data.put("availablePermissions", AVAILABLE_PERMISSIONS);
+      data.put("title", "权限管理");
+      data.put("permissions", permissionList);
+      data.put("permissionCount", permissions.size());
 
-      String html = renderTemplate("permissions.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render permissions page", e);
+      LOG.error("Failed to prepare permissions page data", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -1340,47 +1339,41 @@ public class AuthPlugin {
    * 用户权限管理页面
    */
   @GetMapping("/user/:userId")
+  @RenderTemplate("user-permissions")
+  @Intercepted({ "TemplateRendering" })
   public void getUserPermissionsPage(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
 
     try {
+      // 获取用户当前权限
       Set<String> userPermissions = permissionService.getUserPermissions(userId);
+
+      // 获取所有系统权限
+      List<Permission> allPermissions = permissionService.getAllPermissions();
 
       // 构建权限状态列表
       List<Map<String, Object>> permissionList = new ArrayList<>();
-      for (String permission : AVAILABLE_PERMISSIONS) {
+      for (Permission permission : allPermissions) {
         Map<String, Object> permItem = new HashMap<>();
-        permItem.put("name", permission);
-        permItem.put("granted", userPermissions.contains(permission));
+        permItem.put("code", permission.getCode());
+        permItem.put("name", permission.getName());
+        permItem.put("description", permission.getDescription());
+        permItem.put("granted", userPermissions.contains(permission.getCode()));
+        permItem.put("pluginName", permission.getPluginName());
         permissionList.add(permItem);
       }
 
       Map<String, Object> data = new HashMap<>();
+      data.put("title", "用户权限管理");
       data.put("userId", userId);
       data.put("permissions", permissionList);
       data.put("grantedCount", userPermissions.size());
-      data.put("totalCount", AVAILABLE_PERMISSIONS.size());
+      data.put("totalCount", allPermissions.size());
 
-      // 如果有 UserService，获取用户信息
-      if (userService != null) {
-        userService.getUserById(userId).ifPresent(user -> {
-          data.put("userName", user.getName());
-          // 获取邮箱信息
-          if (accountService != null) {
-            accountService.getEmailAccount(user.getId()).ifPresent(emailAccount -> {
-              data.put("userEmail", emailAccount.getIdentifier());
-            });
-          }
-        });
-      }
-
-      String html = renderTemplate("user-permissions.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render user permissions page", e);
+      LOG.error("Failed to prepare user permissions page data", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -1391,8 +1384,9 @@ public class AuthPlugin {
    * 渲染登录日志页面
    */
   @GetMapping("/logs/page")
-  @Intercepted({ "SimpleAuth" })
+  @Intercepted({ "SimpleAuth", "TemplateRendering" })
   @MenuItem(title = "登录日志", parentId = "auth", order = 3, permissions = { "security.view" })
+  @RenderTemplate("login-logs")
   public void renderLoginLogsPage(RoutingContext ctx) {
     LOG.debug("Rendering login logs page");
 
@@ -1402,13 +1396,10 @@ public class AuthPlugin {
       data.put("currentUserId", ctx.get("userId"));
       data.put("currentUserRole", ctx.get("userRole"));
 
-      String html = renderTemplate("login-logs.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render login logs page", e);
+      LOG.error("Failed to prepare login logs page data", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -1416,12 +1407,14 @@ public class AuthPlugin {
   }
 
   /**
-   * 渲染设置页面
+   * 认证设置页面
    */
   @GetMapping("/settings/page")
-  @Intercepted({ "SimpleAuth" })
+  @Intercepted({ "SimpleAuth", "OperationLog", "TemplateRendering" })
+  @MenuItem(title = "认证设置", parentId = "auth", order = 4, permissions = { "auth.manage" })
+  @RenderTemplate("auth-settings")
   public void renderSettingsPage(RoutingContext ctx) {
-    LOG.debug("Rendering settings page");
+    LOG.debug("Rendering auth settings page");
 
     try {
       Map<String, Object> data = new HashMap<>();
@@ -1429,13 +1422,10 @@ public class AuthPlugin {
       data.put("currentUserId", ctx.get("userId"));
       data.put("currentUserRole", ctx.get("userRole"));
 
-      String html = renderTemplate("auth-settings.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
     } catch (Exception e) {
-      LOG.error("Failed to render settings page", e);
+      LOG.error("Failed to prepare settings page data", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");

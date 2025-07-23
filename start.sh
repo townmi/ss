@@ -1,6 +1,13 @@
 #!/bin/bash
 # Start script for Linux/Mac
 # 启动脚本 - 运行 Host 应用程序
+# 
+# 环境变量:
+#   HTTP_PORT     - 覆盖默认端口 (默认: 8080)
+#   PLUGINS_DIR   - 覆盖插件目录
+#   SERVICES_DIR  - 覆盖服务目录
+#   THEME_DIR     - 覆盖主题目录
+#   ACTIVE_THEME  - 设置活动主题 (默认: default)
 
 # 颜色定义
 RED='\033[0;31m'
@@ -31,6 +38,11 @@ JAVA_OPTS="${JAVA_OPTS} -Dplugins.directory=${SCRIPT_DIR}/libs/plugins"
 JAVA_OPTS="${JAVA_OPTS} -Dservices.directory=${SCRIPT_DIR}/libs/services"
 JAVA_OPTS="${JAVA_OPTS} -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory"
 
+# 主题配置
+JAVA_OPTS="${JAVA_OPTS} -Dapp.root=${SCRIPT_DIR}"
+JAVA_OPTS="${JAVA_OPTS} -Dtheme.directory=${SCRIPT_DIR}/themes"
+JAVA_OPTS="${JAVA_OPTS} -Dfile.encoding=UTF-8"
+
 # 可选：覆盖配置文件中的设置
 if [ ! -z "$HTTP_PORT" ]; then
     JAVA_OPTS="${JAVA_OPTS} -Dhttp.port=${HTTP_PORT}"
@@ -41,12 +53,20 @@ fi
 if [ ! -z "$SERVICES_DIR" ]; then
     JAVA_OPTS="${JAVA_OPTS} -Dservices.directory=${SERVICES_DIR}"
 fi
+if [ ! -z "$THEME_DIR" ]; then
+    JAVA_OPTS="${JAVA_OPTS} -Dtheme.directory=${THEME_DIR}"
+fi
+if [ ! -z "$ACTIVE_THEME" ]; then
+    JAVA_OPTS="${JAVA_OPTS} -Dtheme.active=${ACTIVE_THEME}"
+fi
 
 # 启动应用
 echo -e "${GREEN}配置文件: ${CONFIG_FILE}${NC}"
 echo -e "${GREEN}端口: 8080 (默认，设置 HTTP_PORT 环境变量来覆盖)${NC}"
 echo -e "${GREEN}插件目录: ${SCRIPT_DIR}/libs/plugins${NC}"
 echo -e "${GREEN}服务目录: ${SCRIPT_DIR}/libs/services${NC}"
+echo -e "${GREEN}主题目录: ${SCRIPT_DIR}/themes${NC}"
+echo -e "${GREEN}当前主题: ${ACTIVE_THEME:-default}${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo
 

@@ -31,9 +31,16 @@ set JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory="%ABS_BASE%\libs\plugins"
 set JAVA_OPTS=%JAVA_OPTS% -Dservices.directory="%ABS_BASE%\libs\services"
 set JAVA_OPTS=%JAVA_OPTS% -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory
 
+REM === Theme configuration ===
+set JAVA_OPTS=%JAVA_OPTS% -Dapp.root="%ABS_BASE%"
+set JAVA_OPTS=%JAVA_OPTS% -Dtheme.directory="%ABS_BASE%\themes"
+set JAVA_OPTS=%JAVA_OPTS% -Dfile.encoding=UTF-8
+
 REM === Optional: Override settings from config file ===
 if not "%HTTP_PORT%"=="" set JAVA_OPTS=%JAVA_OPTS% -Dhttp.port=%HTTP_PORT%
 if not "%PLUGINS_DIR%"=="" set JAVA_OPTS=%JAVA_OPTS% -Dplugins.directory="%PLUGINS_DIR%"
+if not "%THEME_DIR%"=="" set JAVA_OPTS=%JAVA_OPTS% -Dtheme.directory="%THEME_DIR%"
+if not "%ACTIVE_THEME%"=="" set JAVA_OPTS=%JAVA_OPTS% -Dtheme.active=%ACTIVE_THEME%
 
 REM === Start Host ===
 echo ========================================
@@ -42,6 +49,8 @@ echo Config: %CONFIG_FILE%
 echo Port: Reading from config file
 echo Plugin directory: %ABS_BASE%\libs\plugins
 echo Service directory: %ABS_BASE%\libs\services
+echo Theme directory: %ABS_BASE%\themes
+echo Active theme: %ACTIVE_THEME% (default if not set)
 echo ========================================
 echo.
 

@@ -6,6 +6,7 @@ import io.vertx.ext.web.RoutingContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import work.anyway.annotations.*;
 import work.anyway.interfaces.auth.PermissionService;
+import work.anyway.interfaces.auth.Permission;
 import work.anyway.interfaces.user.UserService;
 import work.anyway.interfaces.user.AccountService;
 
@@ -37,9 +38,6 @@ public class PermissionManagementController extends BaseAuthController {
 
   @Autowired(required = false)
   private AccountService accountService;
-
-  // 预定义的权限列表
-  private static final List<String> AVAILABLE_PERMISSIONS = Arrays.asList(DEFAULT_PERMISSIONS);
 
   /**
    * 获取用户权限
@@ -227,11 +225,28 @@ public class PermissionManagementController extends BaseAuthController {
    */
   @GetMapping("/available")
   public void getAvailablePermissions(RoutingContext ctx) {
-    JsonObject data = new JsonObject()
-        .put("permissions", new JsonArray(AVAILABLE_PERMISSIONS))
-        .put("count", AVAILABLE_PERMISSIONS.size());
+    try {
+      List<Permission> availablePermissions = permissionService.getAllPermissions();
+      JsonArray permissionsArray = new JsonArray();
+      for (Permission permission : availablePermissions) {
+        JsonObject permObj = new JsonObject()
+            .put("code", permission.getCode())
+            .put("name", permission.getName())
+            .put("description", permission.getDescription())
+            .put("pluginName", permission.getPluginName())
+            .put("isActive", permission.getIsActive());
+        permissionsArray.add(permObj);
+      }
 
-    sendSuccess(ctx, data);
+      JsonObject data = new JsonObject()
+          .put("permissions", permissionsArray)
+          .put("count", permissionsArray.size());
+
+      sendSuccess(ctx, data);
+    } catch (Exception e) {
+      LOG.error("Failed to get available permissions", e);
+      sendError(ctx, 500, "Failed to retrieve permissions: " + e.getMessage());
+    }
   }
 
   /**
@@ -239,18 +254,33 @@ public class PermissionManagementController extends BaseAuthController {
    * GET /auth/permissions/page
    */
   @GetMapping("/page")
+  @RenderTemplate("permissions-management")
+  @Intercepted({ "TemplateRendering" })
   public void getPermissionsPage(RoutingContext ctx) {
     try {
+      // 获取所有权限
+      List<Permission> permissions = permissionService.getAllPermissions();
+
+      // 转换为页面显示需要的格式
+      List<Map<String, Object>> permissionList = new ArrayList<>();
+      for (Permission permission : permissions) {
+        Map<String, Object> permMap = new HashMap<>();
+        permMap.put("code", permission.getCode());
+        permMap.put("name", permission.getName());
+        permMap.put("description", permission.getDescription());
+        permMap.put("pluginName", permission.getPluginName());
+        permMap.put("isActive", permission.getIsActive());
+        permissionList.add(permMap);
+      }
+
       Map<String, Object> data = new HashMap<>();
       data.put("pluginName", PLUGIN_NAME);
-      data.put("availablePermissions", AVAILABLE_PERMISSIONS);
+      data.put("availablePermissions", permissionList);
       data.put("pageTitle", "权限管理");
+      data.put("title", "权限管理");
 
-      String html = renderTemplate("permissions-management.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
 
     } catch (Exception e) {
       LOG.error("Failed to render permissions page", e);
@@ -265,19 +295,26 @@ public class PermissionManagementController extends BaseAuthController {
    * GET /auth/permissions/page/user/:userId
    */
   @GetMapping("/page/user/:userId")
+  @RenderTemplate("user-permissions")
+  @Intercepted({ "TemplateRendering" })
   public void getUserPermissionsPage(RoutingContext ctx) {
     String userId = ctx.pathParam("userId");
 
     try {
       Set<String> userPermissions = permissionService.getUserPermissions(userId);
 
+      // 获取所有权限
+      List<Permission> availablePermissions = permissionService.getAllPermissions();
+
       // 构建权限状态列表
       List<Map<String, Object>> permissionList = new ArrayList<>();
-      for (String permission : AVAILABLE_PERMISSIONS) {
+      for (Permission permission : availablePermissions) {
         Map<String, Object> permItem = new HashMap<>();
-        permItem.put("name", permission);
-        permItem.put("granted", userPermissions.contains(permission));
-        permItem.put("description", getPermissionDescription(permission));
+        permItem.put("code", permission.getCode());
+        permItem.put("name", permission.getName());
+        permItem.put("granted", userPermissions.contains(permission.getCode()));
+        permItem.put("description", permission.getDescription());
+        permItem.put("pluginName", permission.getPluginName());
         permissionList.add(permItem);
       }
 
@@ -285,8 +322,9 @@ public class PermissionManagementController extends BaseAuthController {
       data.put("userId", userId);
       data.put("permissions", permissionList);
       data.put("grantedCount", userPermissions.size());
-      data.put("totalCount", AVAILABLE_PERMISSIONS.size());
+      data.put("totalCount", availablePermissions.size());
       data.put("pageTitle", "用户权限管理");
+      data.put("title", "用户权限管理");
 
       // 获取用户信息
       if (userService != null) {
@@ -301,11 +339,8 @@ public class PermissionManagementController extends BaseAuthController {
         });
       }
 
-      String html = renderTemplate("user-permissions.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+      // 设置数据，框架自动处理渲染
+      ctx.put("viewData", data);
 
     } catch (Exception e) {
       LOG.error("Failed to render user permissions page", e);
@@ -313,24 +348,5 @@ public class PermissionManagementController extends BaseAuthController {
           .setStatusCode(500)
           .end("Internal Server Error");
     }
-  }
-
-  /**
-   * 获取权限描述
-   */
-  private String getPermissionDescription(String permission) {
-    Map<String, String> descriptions = new HashMap<>();
-    descriptions.put("user.create", "创建用户");
-    descriptions.put("user.read", "查看用户");
-    descriptions.put("user.update", "更新用户");
-    descriptions.put("user.delete", "删除用户");
-    descriptions.put("admin.access", "访问管理功能");
-    descriptions.put("admin.manage", "管理系统配置");
-    descriptions.put("system.config", "配置系统参数");
-    descriptions.put("system.monitor", "监控系统状态");
-    descriptions.put("report.view", "查看报表");
-    descriptions.put("report.export", "导出报表");
-
-    return descriptions.getOrDefault(permission, permission);
   }
 }

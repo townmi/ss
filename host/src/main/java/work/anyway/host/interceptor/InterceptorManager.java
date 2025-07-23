@@ -73,23 +73,24 @@ public class InterceptorManager {
     return interceptorCache.computeIfAbsent(cacheKey, k -> {
       List<Interceptor> applicable = new ArrayList<>();
 
-      // 检查方法级别的 @Intercepted 注解
+      // 1. 首先添加全局拦截器（如 TemplateRendering）
+      interceptors.stream()
+          .filter(info -> isGlobalInterceptor(info.getName()))
+          .map(InterceptorInfo::getInterceptor)
+          .forEach(applicable::add);
+
+      // 2. 检查方法级别的 @Intercepted 注解
       work.anyway.annotations.Intercepted methodAnnotation = method
           .getAnnotation(work.anyway.annotations.Intercepted.class);
       if (methodAnnotation != null) {
         addInterceptorsFromAnnotation(methodAnnotation, applicable);
       }
 
-      // 检查类级别的 @Intercepted 注解
+      // 3. 检查类级别的 @Intercepted 注解
       work.anyway.annotations.Intercepted classAnnotation = controllerClass
           .getAnnotation(work.anyway.annotations.Intercepted.class);
       if (classAnnotation != null) {
         addInterceptorsFromAnnotation(classAnnotation, applicable);
-      }
-
-      // 如果没有任何注解，返回空列表
-      if (methodAnnotation == null && classAnnotation == null) {
-        return new ArrayList<>();
       }
 
       // 去重并排序
@@ -98,6 +99,14 @@ public class InterceptorManager {
           .sorted(Comparator.comparingInt(Interceptor::getOrder))
           .collect(Collectors.toList());
     });
+  }
+
+  /**
+   * 判断是否为全局拦截器
+   */
+  private boolean isGlobalInterceptor(String interceptorName) {
+    // TemplateRendering 是全局拦截器，对所有页面请求生效
+    return "TemplateRendering".equals(interceptorName);
   }
 
   private void addInterceptorsFromAnnotation(work.anyway.annotations.Intercepted annotation,

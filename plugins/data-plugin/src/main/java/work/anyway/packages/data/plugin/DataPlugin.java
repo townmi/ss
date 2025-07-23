@@ -29,6 +29,9 @@ import java.util.*;
 @Plugin(name = "Data Plugin", version = "1.0.0", description = "通用数据管理插件，支持动态创建和管理数据集合", icon = "📊", mainPagePath = "/page/data/")
 @Controller
 @RequestMapping("/")
+@MenuItem(id = "data", title = "数据管理", icon = "📊", order = 40)
+@PermissionDef(code = "data.view", name = "查看数据", defaultRoles = { "admin", "user" })
+@PermissionDef(code = "data.manage", name = "管理数据", defaultRoles = { "admin" })
 public class DataPlugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataPlugin.class);
@@ -49,20 +52,33 @@ public class DataPlugin {
    * 主页路由
    */
   @GetMapping("/page/data/")
+  @MenuItem(title = "数据概览", parentId = "data", order = 1, permissions = { "data.view" })
   public void handleMainPage(RoutingContext ctx) {
     try {
       // 获取所有集合
       List<String> collections = getAllCollections();
 
       Map<String, Object> data = new HashMap<>();
+      data.put("title", "数据管理");
       data.put("collections", collections);
       data.put("hasCollections", !collections.isEmpty());
       data.put("collectionCount", collections.size());
 
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", data);
+      ctx.put("_layout", "base");
+
       String html = renderTemplate("index.mustache", data);
+      ctx.put("_rendered_content", html);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(html);
+      }
     } catch (Exception e) {
       LOG.error("Error rendering main page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -99,6 +115,7 @@ public class DataPlugin {
 
         // 准备模板数据
         Map<String, Object> data = new HashMap<>();
+        data.put("title", "数据集合: " + collectionName);
         data.put("collectionName", collectionName);
         data.put("collection", collectionName); // 添加 collection 键，模板中也使用了
         data.put("items", result.getData()); // 改为 items 以匹配模板
@@ -130,6 +147,10 @@ public class DataPlugin {
           data.put("fields", Collections.singletonList("id"));
         }
 
+        // 设置模板数据供主题系统使用
+        ctx.put("templateData", data);
+        ctx.put("_layout", "base");
+
         String html = renderTemplate("collection.mustache", data);
         promise.complete(html);
       } catch (Exception e) {
@@ -137,9 +158,17 @@ public class DataPlugin {
       }
     }, res -> {
       if (res.succeeded()) {
+        String html = (String) res.result();
+        ctx.put("_rendered_content", html);
+
+        // 设置响应头但不结束响应，让拦截器处理
         ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end((String) res.result());
+            .putHeader("content-type", "text/html; charset=utf-8");
+
+        // 如果没有主题处理器，直接发送响应
+        if (ctx.get("_theme_processor_available") == null) {
+          ctx.response().end(html);
+        }
       } else {
         LOG.error("Error rendering collection page", res.cause());
         ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -155,16 +184,28 @@ public class DataPlugin {
     String collectionName = ctx.pathParam("name");
 
     Map<String, Object> data = new HashMap<>();
+    data.put("title", "创建记录 - " + collectionName);
     data.put("collectionName", collectionName);
     data.put("action", "create");
     data.put("submitUrl", "/api/data/" + collectionName);
     data.put("method", "POST");
 
     try {
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", data);
+      ctx.put("_layout", "base");
+
       String html = renderTemplate("create.mustache", data);
+      ctx.put("_rendered_content", html);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(html);
+      }
     } catch (Exception e) {
       LOG.error("Error rendering create page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -189,12 +230,17 @@ public class DataPlugin {
         }
 
         Map<String, Object> data = new HashMap<>();
+        data.put("title", "编辑记录 - " + collectionName);
         data.put("collectionName", collectionName);
         data.put("action", "edit");
         data.put("submitUrl", "/api/data/" + collectionName + "/" + id);
         data.put("method", "PUT");
         data.put("record", record.get());
         data.put("recordJson", objectMapper.writeValueAsString(record.get()));
+
+        // 设置模板数据供主题系统使用
+        ctx.put("templateData", data);
+        ctx.put("_layout", "base");
 
         String html = renderTemplate("edit.mustache", data);
         promise.complete(html);
@@ -203,9 +249,17 @@ public class DataPlugin {
       }
     }, res -> {
       if (res.succeeded()) {
+        String html = (String) res.result();
+        ctx.put("_rendered_content", html);
+
+        // 设置响应头但不结束响应，让拦截器处理
         ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end((String) res.result());
+            .putHeader("content-type", "text/html; charset=utf-8");
+
+        // 如果没有主题处理器，直接发送响应
+        if (ctx.get("_theme_processor_available") == null) {
+          ctx.response().end(html);
+        }
       } else {
         LOG.error("Error rendering edit page", res.cause());
         ctx.response().setStatusCode(404).end("Record not found");

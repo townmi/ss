@@ -1,198 +1,120 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>{{pluginName}}</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f5f5f5;
-    }
-    
-    .breadcrumb {
-      background-color: #fff;
-      padding: 12px 20px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
+<div class="page-header">
+  <h1>📊 数据管理</h1>
+  <p class="lead">通用的数据管理系统，支持动态创建和管理数据集合</p>
+</div>
 
-    .breadcrumb-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .breadcrumb ul {
-      list-style: none;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      margin: 0;
-      padding: 0;
-    }
-
-    .breadcrumb li {
-      display: flex;
-      align-items: center;
-    }
-
-    .breadcrumb li:not(:last-child)::after {
-      content: '/';
-      margin: 0 10px;
-      color: #999;
-    }
-
-    .breadcrumb a {
-      color: #007bff;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .breadcrumb a:hover {
-      color: #0056b3;
-      text-decoration: underline;
-    }
-
-    .breadcrumb .current {
-      color: #666;
-      font-weight: 500;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #333;
-      margin-bottom: 30px;
-    }
-    .info {
-      background: #e3f2fd;
-      padding: 20px;
-      border-radius: 4px;
-      margin-bottom: 30px;
-    }
-    .collection-form {
-      background: #f5f5f5;
-      padding: 20px;
-      border-radius: 4px;
-      margin-bottom: 30px;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 16px;
-    }
-    button {
-      background: #2196F3;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #1976D2;
-    }
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-top: 30px;
-    }
-    .feature {
-      background: #f9f9f9;
-      padding: 20px;
-      border-radius: 4px;
-      border: 1px solid #eee;
-    }
-    .feature h3 {
-      color: #2196F3;
-      margin-bottom: 10px;
-    }
-  </style>
-</head>
-<body>
-  <nav class="breadcrumb">
-    <div class="breadcrumb-inner">
-      <ul>
-        <li><a href="/page/">首页</a></li>
-        <li class="current">数据管理</li>
-      </ul>
-    </div>
-  </nav>
-  
-  <div class="container">
-    <h1>📊 {{pluginName}} v{{pluginVersion}}</h1>
-    
-    <div class="info">
-      <h2>欢迎使用数据管理插件</h2>
-      <p>这是一个通用的数据管理系统，支持动态创建和管理数据集合。您可以：</p>
-      <ul>
-        <li>创建自定义数据集合</li>
-        <li>执行 CRUD 操作</li>
-        <li>批量导入导出数据</li>
-        <li>支持多数据源配置</li>
-      </ul>
-    </div>
-    
-    <div class="collection-form">
-      <h2>快速访问数据集合</h2>
-      <div class="form-group">
-        <label for="collectionName">集合名称：</label>
-        <input type="text" id="collectionName" placeholder="例如：products, orders, customers">
+<div class="row">
+  <div class="col-12">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">欢迎使用数据管理插件</h5>
       </div>
-      <button onclick="goToCollection()">访问集合</button>
+      <div class="card-body">
+        <p>这是一个通用的数据管理系统，您可以：</p>
+        <ul class="list-check">
+          <li>创建自定义数据集合</li>
+          <li>执行 CRUD 操作</li>
+          <li>批量导入导出数据</li>
+          <li>支持多数据源配置</li>
+        </ul>
+      </div>
     </div>
-    
-    <div class="features">
-      <div class="feature">
-        <h3>🚀 高性能</h3>
-        <p>基于 Vert.x 异步架构，支持高并发数据访问</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">快速访问数据集合</h5>
       </div>
-      <div class="feature">
-        <h3>🔧 灵活配置</h3>
-        <p>支持多种数据源，包括 MySQL、PostgreSQL 等</p>
-      </div>
-      <div class="feature">
-        <h3>🛡️ 类型安全</h3>
-        <p>提供类型安全的 Repository 接口，减少运行时错误</p>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="collectionName">集合名称：</label>
+          <input type="text" id="collectionName" class="form-control" placeholder="例如：products, orders, customers">
+        </div>
+        <button class="btn btn-primary" onclick="goToCollection()">
+          <i class="fas fa-database"></i> 访问集合
+        </button>
       </div>
     </div>
   </div>
   
-  <script>
-    function goToCollection() {
-      const collectionName = document.getElementById('collectionName').value.trim();
-      if (collectionName) {
-        window.location.href = '/page/data/collection/' + collectionName;
-      } else {
-        alert('请输入集合名称');
-      }
-    }
-    
-    // 支持回车键提交
-    document.getElementById('collectionName').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        goToCollection();
-      }
-    });
-  </script>
-</body>
-</html> 
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">现有集合</h5>
+      </div>
+      <div class="card-body">
+        {{#hasCollections}}
+        <div class="list-group">
+          {{#collections}}
+          <a href="/page/data/collection/{{.}}" class="list-group-item list-group-item-action">
+            <i class="fas fa-table"></i> {{.}}
+          </a>
+          {{/collections}}
+        </div>
+        {{/hasCollections}}
+        {{^hasCollections}}
+        <p class="text-muted mb-0">暂无数据集合</p>
+        {{/hasCollections}}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <div class="icon-box mb-3">
+          <i class="fas fa-rocket fa-3x text-primary"></i>
+        </div>
+        <h5>高性能</h5>
+        <p class="text-muted">基于 Vert.x 异步架构，支持高并发数据访问</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <div class="icon-box mb-3">
+          <i class="fas fa-cogs fa-3x text-success"></i>
+        </div>
+        <h5>灵活配置</h5>
+        <p class="text-muted">支持多种数据源，包括 MySQL、PostgreSQL 等</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <div class="icon-box mb-3">
+          <i class="fas fa-shield-alt fa-3x text-warning"></i>
+        </div>
+        <h5>类型安全</h5>
+        <p class="text-muted">提供类型安全的 Repository 接口，减少运行时错误</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function goToCollection() {
+  const collectionName = document.getElementById('collectionName').value.trim();
+  if (collectionName) {
+    window.location.href = '/page/data/collection/' + collectionName;
+  } else {
+    alert('请输入集合名称');
+  }
+}
+
+// 支持回车键提交
+document.getElementById('collectionName').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    goToCollection();
+  }
+});
+</script> 

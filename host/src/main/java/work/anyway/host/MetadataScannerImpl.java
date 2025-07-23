@@ -10,7 +10,6 @@ import work.anyway.annotations.*;
 
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 注解扫描器
@@ -68,8 +67,8 @@ public class MetadataScannerImpl implements BeanPostProcessor, ScanDataProvider 
       permissionData.put("pluginVersion", pluginVersion);
 
       scannedPermissions.add(permissionData);
-      LOG.info("Scanned permission: {} - {} from plugin: {}",
-          def.code(), def.name(), pluginName);
+      LOG.debug("Scanned permission: {} from plugin: {}",
+          def.code(), pluginName);
     }
   }
 
@@ -111,8 +110,8 @@ public class MetadataScannerImpl implements BeanPostProcessor, ScanDataProvider 
       menuData.put("pluginVersion", pluginVersion);
 
       scannedMenuItems.add(menuData);
-      LOG.info("Scanned class-level menu: {} - {} from plugin: {}",
-          menuId, item.title(), pluginName);
+      LOG.debug("Scanned class-level menu: {} from plugin: {}",
+          menuId, pluginName);
     }
   }
 
@@ -149,8 +148,8 @@ public class MetadataScannerImpl implements BeanPostProcessor, ScanDataProvider 
         menuData.put("pluginVersion", pluginVersion);
 
         scannedMenuItems.add(menuData);
-        LOG.info("Scanned method-level menu: {} - {} from plugin: {}",
-            menuId, item.title(), pluginName);
+        LOG.debug("Scanned method-level menu: {} from plugin: {}",
+            menuId, pluginName);
       }
     }
   }

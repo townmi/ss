@@ -79,6 +79,7 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
 
     // 处理拦截器注册
     if (bean instanceof Interceptor) {
+      LOG.info("Found interceptor bean: {} (class: {})", beanName, bean.getClass().getName());
       interceptorManager.registerInterceptor((Interceptor) bean);
     }
 
@@ -150,7 +151,7 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
         // 没有指定 HTTP 方法，注册所有方法
         Route route = router.route(fullPath);
         route.handler(ctx -> handleRequest(ctx, controller, method));
-        LOG.info("Registered route: ALL {} -> {}#{}", fullPath, controller.getClass().getSimpleName(),
+        LOG.debug("Registered route: ALL {} -> {}#{}", fullPath, controller.getClass().getSimpleName(),
             method.getName());
       } else {
         // 注册指定的 HTTP 方法
@@ -158,7 +159,7 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
           HttpMethod httpMethod = HttpMethod.valueOf(httpMethodStr.toUpperCase());
           Route route = createRoute(httpMethod, fullPath);
           route.handler(ctx -> handleRequest(ctx, controller, method));
-          LOG.info("Registered route: {} {} -> {}#{}", httpMethod, fullPath, controller.getClass().getSimpleName(),
+          LOG.debug("Registered route: {} {} -> {}#{}", httpMethod, fullPath, controller.getClass().getSimpleName(),
               method.getName());
         }
       }
@@ -172,7 +173,7 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
       String fullPath = buildFullPath(basePath, path);
       Route route = router.get(fullPath);
       route.handler(ctx -> handleRequest(ctx, controller, method));
-      LOG.info("Registered route: GET {} -> {}#{}", fullPath, controller.getClass().getSimpleName(), method.getName());
+      LOG.debug("Registered route: GET {} -> {}#{}", fullPath, controller.getClass().getSimpleName(), method.getName());
     }
   }
 
@@ -183,7 +184,8 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
       String fullPath = buildFullPath(basePath, path);
       Route route = router.post(fullPath);
       route.handler(ctx -> handleRequest(ctx, controller, method));
-      LOG.info("Registered route: POST {} -> {}#{}", fullPath, controller.getClass().getSimpleName(), method.getName());
+      LOG.debug("Registered route: POST {} -> {}#{}", fullPath, controller.getClass().getSimpleName(),
+          method.getName());
     }
   }
 
@@ -231,9 +233,19 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
   }
 
   private void handleRequest(RoutingContext ctx, Object controller, Method method) {
+    // 保存方法和实例信息，供拦截器使用
+    ctx.put("_handler_method", method);
+    ctx.put("_handler_instance", controller);
+    ctx.put("_spring_context", applicationContext);
+
     // 获取适用的拦截器
     List<Interceptor> applicableInterceptors = interceptorManager.getApplicableInterceptors(controller.getClass(),
         method);
+
+    LOG.debug("Applicable interceptors for {}.{}: {}",
+        controller.getClass().getSimpleName(),
+        method.getName(),
+        applicableInterceptors.stream().map(Interceptor::getName).toList());
 
     // 执行前置拦截
     for (Interceptor interceptor : applicableInterceptors) {
@@ -268,9 +280,15 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
           throw new IllegalArgumentException("Unsupported method parameters: " + method);
         }
 
+        LOG.info("Method execution completed for {}.{}, response ended: {}, headers written: {}",
+            controller.getClass().getSimpleName(), method.getName(),
+            ctx.response().ended(), ctx.response().headWritten());
+
         // 执行后置拦截
+        LOG.debug("Executing postHandle for {} interceptors", applicableInterceptors.size());
         for (Interceptor interceptor : applicableInterceptors) {
           try {
+            LOG.debug("Calling postHandle on interceptor: {}", interceptor.getName());
             interceptor.postHandle(ctx, result);
           } catch (Exception e) {
             LOG.error("Error in interceptor postHandle: {}", interceptor.getName(), e);

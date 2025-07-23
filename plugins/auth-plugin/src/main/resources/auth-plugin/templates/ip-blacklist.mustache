@@ -1,544 +1,251 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}} - Auth Plugin</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<div class="page-header">
+    <h1>
+        <span>🔐</span>
+        <span>{{title}}</span>
+    </h1>
+    <div class="breadcrumb">
+        <a href="/auth/">认证管理</a> / IP黑名单管理
+    </div>
+</div>
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
+<div class="controls">
+    <div class="controls-header">
+        <h2>黑名单管理</h2>
+        <button class="btn btn-primary" onclick="showAddModal()">添加黑名单</button>
+    </div>
+    <div class="form-group">
+        <label>搜索IP:</label>
+        <input type="text" id="searchInput" placeholder="输入IP地址搜索..." onkeyup="searchBlacklist()">
+        <button class="btn btn-secondary" onclick="refreshBlacklist()">刷新</button>
+    </div>
+</div>
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+<div class="blacklist-table data-table">
+    <table>
+        <thead>
+            <tr>
+                <th>IP地址</th>
+                <th>封禁原因</th>
+                <th>封禁者</th>
+                <th>封禁时间</th>
+                <th>过期时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="blacklistBody">
+            <tr>
+                <td colspan="7" class="loading">加载中...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 600;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-
-        .nav-links a:hover {
-            background-color: rgba(255,255,255,0.1);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-
-        .controls {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-
-        .controls-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background-color: #667eea;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #5a67d8;
-        }
-
-        .btn-danger {
-            background-color: #e53e3e;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background-color: #c53030;
-        }
-
-        .btn-secondary {
-            background-color: #718096;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background-color: #4a5568;
-        }
-
-        .form-group {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .form-group label {
-            font-weight: 500;
-            color: #4a5568;
-        }
-
-        .form-group input,
-        .form-group select {
-            padding: 0.5rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 5px;
-            font-size: 0.9rem;
-        }
-
-        .form-group input[type="text"] {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .blacklist-table {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background-color: #f7fafc;
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: #4a5568;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        tr:hover {
-            background-color: #f7fafc;
-        }
-
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-
-        .status-active {
-            background-color: #f56565;
-            color: white;
-        }
-
-        .status-expired {
-            background-color: #a0aec0;
-            color: white;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #718096;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: #718096;
-        }
-
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 1rem;
-            opacity: 0.3;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            margin: 10% auto;
-            padding: 2rem;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .modal-header {
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-header h2 {
-            color: #2d3748;
-        }
-
-        .modal-body {
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-        }
-
-        .form-field {
-            margin-bottom: 1rem;
-        }
-
-        .form-field label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: #4a5568;
-        }
-
-        .form-field input,
-        .form-field select,
-        .form-field textarea {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 5px;
-            font-size: 0.9rem;
-        }
-
-        .form-field textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .checkbox-field {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .checkbox-field input[type="checkbox"] {
-            width: auto;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="header-content">
-            <h1>🔐 {{title}}</h1>
-            <div class="nav-links">
-                <a href="/auth/">仪表板</a>
-                <a href="/auth/admin/security/stats/page">安全统计</a>
-                <a href="/auth/admin/security/locked-accounts/page">锁定账户</a>
-                <a href="/auth/logs/page">登录日志</a>
+<!-- 添加黑名单模态框 -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>添加IP黑名单</h2>
+        </div>
+        <div class="modal-body">
+            <div class="form-field">
+                <label>IP地址 *</label>
+                <input type="text" id="ipAddress" placeholder="例如: 192.168.1.100">
             </div>
+            <div class="form-field">
+                <label>封禁原因 *</label>
+                <textarea id="reason" placeholder="请输入封禁原因..."></textarea>
+            </div>
+            <div class="form-field">
+                <label>过期时间</label>
+                <input type="datetime-local" id="expiresAt">
+            </div>
+            <div class="form-field checkbox-field">
+                <input type="checkbox" id="isPermanent" onchange="toggleExpiration()">
+                <label for="isPermanent">永久封禁</label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hideAddModal()">取消</button>
+            <button class="btn btn-primary" onclick="addBlacklist()">添加</button>
         </div>
     </div>
+</div>
 
-    <div class="container">
-        <div class="controls">
-            <div class="controls-header">
-                <h2>黑名单管理</h2>
-                <button class="btn btn-primary" onclick="showAddModal()">添加黑名单</button>
-            </div>
-            <div class="form-group">
-                <label>搜索IP:</label>
-                <input type="text" id="searchInput" placeholder="输入IP地址搜索..." onkeyup="searchBlacklist()">
-                <button class="btn btn-secondary" onclick="refreshBlacklist()">刷新</button>
-            </div>
-        </div>
+<script>
+    let blacklistData = [];
 
-        <div class="blacklist-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>IP地址</th>
-                        <th>封禁原因</th>
-                        <th>封禁者</th>
-                        <th>封禁时间</th>
-                        <th>过期时间</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="blacklistBody">
-                    <tr>
-                        <td colspan="7" class="loading">加载中...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    // 页面加载时获取黑名单列表
+    window.onload = function() {
+        loadBlacklist();
+    };
 
-    <!-- 添加黑名单模态框 -->
-    <div id="addModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>添加IP黑名单</h2>
-            </div>
-            <div class="modal-body">
-                <div class="form-field">
-                    <label>IP地址 *</label>
-                    <input type="text" id="ipAddress" placeholder="例如: 192.168.1.100">
-                </div>
-                <div class="form-field">
-                    <label>封禁原因 *</label>
-                    <textarea id="reason" placeholder="请输入封禁原因..."></textarea>
-                </div>
-                <div class="form-field">
-                    <label>过期时间</label>
-                    <input type="datetime-local" id="expiresAt">
-                </div>
-                <div class="form-field checkbox-field">
-                    <input type="checkbox" id="isPermanent" onchange="toggleExpiration()">
-                    <label for="isPermanent">永久封禁</label>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="hideAddModal()">取消</button>
-                <button class="btn btn-primary" onclick="addBlacklist()">添加</button>
-            </div>
-        </div>
-    </div>
+    function loadBlacklist() {
+        fetch('/auth/admin/security/blacklist')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    blacklistData = data.data.blacklist || [];
+                    renderBlacklist(blacklistData);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading blacklist:', error);
+                document.getElementById('blacklistBody').innerHTML = 
+                    '<tr><td colspan="7" class="empty-state">加载失败，请重试</td></tr>';
+            });
+    }
 
-    <script>
-        let blacklistData = [];
+    function renderBlacklist(data) {
+        const tbody = document.getElementById('blacklistBody');
+        
+        if (data.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <div class="icon">🚫</div>
+                        <p>暂无黑名单记录</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
 
-        // 页面加载时获取黑名单列表
-        window.onload = function() {
-            loadBlacklist();
+        tbody.innerHTML = data.map(item => {
+            const isExpired = item.expiresAt && new Date(item.expiresAt) < new Date();
+            const statusClass = isExpired ? 'status-expired' : 'status-active';
+            const statusText = item.isPermanent ? '永久封禁' : (isExpired ? '已过期' : '生效中');
+            
+            return `
+                <tr>
+                    <td><strong>${item.ipAddress}</strong></td>
+                    <td>${item.reason}</td>
+                    <td>${item.blockedBy || 'System'}</td>
+                    <td>${formatDate(item.createdAt)}</td>
+                    <td>${item.isPermanent ? '永不过期' : (item.expiresAt ? formatDate(item.expiresAt) : '-')}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>
+                        <button class="btn btn-danger" onclick="removeBlacklist('${item.ipAddress}')">移除</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function searchBlacklist() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = blacklistData.filter(item => 
+            item.ipAddress.toLowerCase().includes(searchTerm) ||
+            item.reason.toLowerCase().includes(searchTerm)
+        );
+        renderBlacklist(filtered);
+    }
+
+    function refreshBlacklist() {
+        loadBlacklist();
+    }
+
+    function showAddModal() {
+        document.getElementById('addModal').style.display = 'block';
+        // 设置默认过期时间为24小时后
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('expiresAt').value = tomorrow.toISOString().slice(0, 16);
+    }
+
+    function hideAddModal() {
+        document.getElementById('addModal').style.display = 'none';
+        // 清空表单
+        document.getElementById('ipAddress').value = '';
+        document.getElementById('reason').value = '';
+        document.getElementById('isPermanent').checked = false;
+        toggleExpiration();
+    }
+
+    function toggleExpiration() {
+        const isPermanent = document.getElementById('isPermanent').checked;
+        document.getElementById('expiresAt').disabled = isPermanent;
+    }
+
+    function addBlacklist() {
+        const ipAddress = document.getElementById('ipAddress').value.trim();
+        const reason = document.getElementById('reason').value.trim();
+        const isPermanent = document.getElementById('isPermanent').checked;
+        const expiresAt = isPermanent ? null : document.getElementById('expiresAt').value;
+
+        if (!ipAddress || !reason) {
+            alert('请填写IP地址和封禁原因');
+            return;
+        }
+
+        const data = {
+            ipAddress: ipAddress,
+            reason: reason,
+            isPermanent: isPermanent
         };
 
-        function loadBlacklist() {
-            fetch('/auth/admin/security/blacklist')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        blacklistData = data.data.blacklist || [];
-                        renderBlacklist(blacklistData);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading blacklist:', error);
-                    document.getElementById('blacklistBody').innerHTML = 
-                        '<tr><td colspan="7" class="empty-state">加载失败，请重试</td></tr>';
-                });
+        if (!isPermanent && expiresAt) {
+            data.expiresAt = new Date(expiresAt).toISOString();
         }
 
-        function renderBlacklist(data) {
-            const tbody = document.getElementById('blacklistBody');
-            
-            if (data.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="empty-state">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                            </svg>
-                            <p>暂无黑名单记录</p>
-                        </td>
-                    </tr>
-                `;
-                return;
+        fetch('/auth/admin/security/blacklist-ip', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                hideAddModal();
+                loadBlacklist();
+            } else {
+                alert('添加失败: ' + data.error);
             }
+        })
+        .catch(error => {
+            alert('添加失败: ' + error.message);
+        });
+    }
 
-            tbody.innerHTML = data.map(item => {
-                const isExpired = item.expiresAt && new Date(item.expiresAt) < new Date();
-                const statusClass = isExpired ? 'status-expired' : 'status-active';
-                const statusText = item.isPermanent ? '永久封禁' : (isExpired ? '已过期' : '生效中');
-                
-                return `
-                    <tr>
-                        <td><strong>${item.ipAddress}</strong></td>
-                        <td>${item.reason}</td>
-                        <td>${item.blockedBy || 'System'}</td>
-                        <td>${formatDate(item.createdAt)}</td>
-                        <td>${item.isPermanent ? '永不过期' : (item.expiresAt ? formatDate(item.expiresAt) : '-')}</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            <button class="btn btn-danger" onclick="removeBlacklist('${item.ipAddress}')">移除</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+    function removeBlacklist(ipAddress) {
+        if (!confirm(`确定要从黑名单中移除 ${ipAddress} 吗？`)) {
+            return;
         }
 
-        function searchBlacklist() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = blacklistData.filter(item => 
-                item.ipAddress.toLowerCase().includes(searchTerm) ||
-                item.reason.toLowerCase().includes(searchTerm)
-            );
-            renderBlacklist(filtered);
-        }
-
-        function refreshBlacklist() {
-            loadBlacklist();
-        }
-
-        function showAddModal() {
-            document.getElementById('addModal').style.display = 'block';
-            // 设置默认过期时间为24小时后
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            document.getElementById('expiresAt').value = tomorrow.toISOString().slice(0, 16);
-        }
-
-        function hideAddModal() {
-            document.getElementById('addModal').style.display = 'none';
-            // 清空表单
-            document.getElementById('ipAddress').value = '';
-            document.getElementById('reason').value = '';
-            document.getElementById('isPermanent').checked = false;
-            toggleExpiration();
-        }
-
-        function toggleExpiration() {
-            const isPermanent = document.getElementById('isPermanent').checked;
-            document.getElementById('expiresAt').disabled = isPermanent;
-        }
-
-        function addBlacklist() {
-            const ipAddress = document.getElementById('ipAddress').value.trim();
-            const reason = document.getElementById('reason').value.trim();
-            const isPermanent = document.getElementById('isPermanent').checked;
-            const expiresAt = isPermanent ? null : document.getElementById('expiresAt').value;
-
-            if (!ipAddress || !reason) {
-                alert('请填写IP地址和封禁原因');
-                return;
+        fetch('/auth/admin/security/unblacklist-ip', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+            },
+            body: JSON.stringify({ ipAddress: ipAddress })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadBlacklist();
+            } else {
+                alert('移除失败: ' + data.error);
             }
+        })
+        .catch(error => {
+            alert('移除失败: ' + error.message);
+        });
+    }
 
-            const data = {
-                ipAddress: ipAddress,
-                reason: reason,
-                isPermanent: isPermanent
-            };
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleString('zh-CN');
+    }
 
-            if (!isPermanent && expiresAt) {
-                data.expiresAt = new Date(expiresAt).toISOString();
-            }
-
-            fetch('/auth/admin/security/blacklist-ip', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('authToken')
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    hideAddModal();
-                    loadBlacklist();
-                } else {
-                    alert('添加失败: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('添加失败: ' + error.message);
-            });
+    // 点击模态框外部关闭
+    window.onclick = function(event) {
+        if (event.target.className === 'modal') {
+            event.target.style.display = 'none';
         }
-
-        function removeBlacklist(ipAddress) {
-            if (!confirm(`确定要从黑名单中移除 ${ipAddress} 吗？`)) {
-                return;
-            }
-
-            fetch('/auth/admin/security/unblacklist-ip', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('authToken')
-                },
-                body: JSON.stringify({ ipAddress: ipAddress })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadBlacklist();
-                } else {
-                    alert('移除失败: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('移除失败: ' + error.message);
-            });
-        }
-
-        function formatDate(dateString) {
-            if (!dateString) return '-';
-            const date = new Date(dateString);
-            return date.toLocaleString('zh-CN');
-        }
-
-        // 点击模态框外部关闭
-        window.onclick = function(event) {
-            if (event.target.className === 'modal') {
-                event.target.style.display = 'none';
-            }
-        }
-    </script>
-</body>
-</html> 
+    }
+</script> 

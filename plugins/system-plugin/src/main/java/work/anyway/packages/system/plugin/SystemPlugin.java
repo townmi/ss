@@ -109,16 +109,29 @@ public class SystemPlugin {
       templateData.put("plugins", pluginData);
       templateData.put("pluginCount", pluginData.size()); // 只计算显示的插件数量
       templateData.put("hasPlugins", !pluginData.isEmpty());
+      templateData.put("title", "系统概览");
 
       // 添加总插件数（包括隐藏的）
       templateData.put("totalPluginCount", plugins.size());
 
-      // 渲染模板
-      String html = renderTemplate("home.mustache", templateData);
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", templateData);
+      ctx.put("_layout", "base");
 
+      // 渲染模板内容（不包含布局）
+      String content = renderTemplate("home.mustache", templateData);
+
+      // 设置渲染后的内容供主题系统处理
+      ctx.put("_rendered_content", content);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(content);
+      }
     } catch (Exception e) {
       LOG.error("Error rendering home page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -154,10 +167,21 @@ public class SystemPlugin {
       data.put("pluginCount", plugins.size());
       data.put("plugins", plugins);
 
-      String html = renderTemplate("system-info.mustache", data);
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", data);
+      ctx.put("_layout", "base");
+
+      String content = renderTemplate("system-info.mustache", data);
+      ctx.put("_rendered_content", content);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(content);
+      }
     } catch (Exception e) {
       LOG.error("Error rendering system info page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -190,10 +214,21 @@ public class SystemPlugin {
       data.put("plugins", pluginList);
       data.put("pluginCount", plugins.size());
 
-      String html = renderTemplate("plugin-management.mustache", data);
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", data);
+      ctx.put("_layout", "base");
+
+      String content = renderTemplate("plugin-management.mustache", data);
+      ctx.put("_rendered_content", content);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(content);
+      }
     } catch (Exception e) {
       LOG.error("Error rendering plugin management page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -213,10 +248,21 @@ public class SystemPlugin {
       data.put("logLevel", "INFO");
       data.put("logFile", "logs/application.log");
 
-      String html = renderTemplate("system-logs.mustache", data);
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", data);
+      ctx.put("_layout", "base");
+
+      String content = renderTemplate("system-logs.mustache", data);
+      ctx.put("_rendered_content", content);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(content);
+      }
     } catch (Exception e) {
       LOG.error("Error rendering system logs page", e);
       ctx.response().setStatusCode(500).end("Internal Server Error");
@@ -234,10 +280,21 @@ public class SystemPlugin {
       data.put("title", "菜单测试页面");
       data.put("menuApiUrl", "/api/menus");
 
-      String html = renderTemplate("menu-test.mustache", data);
+      // 设置模板数据供主题系统使用
+      ctx.put("templateData", data);
+      ctx.put("_layout", "base");
+
+      String content = renderTemplate("menu-test.mustache", data);
+      ctx.put("_rendered_content", content);
+
+      // 设置响应头但不结束响应，让拦截器处理
       ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
+          .putHeader("content-type", "text/html; charset=utf-8");
+
+      // 如果没有主题处理器，直接发送响应
+      if (ctx.get("_theme_processor_available") == null) {
+        ctx.response().end(content);
+      }
     } catch (Exception e) {
       LOG.error("Failed to render menu test page", e);
       ctx.response()

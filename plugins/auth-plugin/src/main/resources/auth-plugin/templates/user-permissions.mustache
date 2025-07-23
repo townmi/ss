@@ -1,193 +1,254 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>用户权限 - {{userId}}</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f5f5f5;
-    }
-    
-    .breadcrumb {
-      background-color: #fff;
-      padding: 12px 20px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
+<div class="page-header">
+    <h1>👤 用户权限管理</h1>
+    <p>管理用户 <strong>{{userId}}</strong> 的权限</p>
+</div>
 
-    .breadcrumb-inner {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .breadcrumb ul {
-      list-style: none;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      margin: 0;
-      padding: 0;
-    }
-
-    .breadcrumb li {
-      display: flex;
-      align-items: center;
-    }
-
-    .breadcrumb li:not(:last-child)::after {
-      content: '/';
-      margin: 0 10px;
-      color: #999;
-    }
-
-    .breadcrumb a {
-      color: #007bff;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .breadcrumb a:hover {
-      color: #0056b3;
-      text-decoration: underline;
-    }
-
-    .breadcrumb .current {
-      color: #666;
-      font-weight: 500;
-    }
-    
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-    }
-    .permissions-section {
-      margin-bottom: 30px;
-    }
-    .permission-list {
-      list-style: none;
-      padding: 0;
-    }
-    .permission-item {
-      padding: 10px;
-      margin: 5px 0;
-      background: #f0f0f0;
-      border-radius: 4px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .permission-item.has-permission {
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
-    }
-    .permission-item.no-permission {
-      background: #f8d7da;
-      border: 1px solid #f5c6cb;
-    }
-    button {
-      padding: 5px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .grant-btn {
-      background: #28a745;
-      color: white;
-    }
-    .revoke-btn {
-      background: #dc3545;
-      color: white;
-    }
-  </style>
-</head>
-<body>
-  <nav class="breadcrumb">
-    <div class="breadcrumb-inner">
-      <ul>
-        <li><a href="/page/">首页</a></li>
-        <li><a href="/page/auth/">权限管理</a></li>
-        <li><a href="/page/auth/permissions">权限列表</a></li>
-        <li class="current">用户权限详情</li>
-      </ul>
-    </div>
-  </nav>
-  
-  <div class="container">
-    <h1>用户权限管理: {{userId}}</h1>
-    
-    <div class="permissions-section">
-      <h2>当前权限</h2>
-      <ul class="permission-list">
-        {{#userPermissions}}
-        <li class="permission-item has-permission">
-          <span>{{.}}</span>
-          <button class="revoke-btn" onclick="revokePermission('{{userId}}', '{{.}}')">撤销</button>
-        </li>
-        {{/userPermissions}}
-        {{^userPermissions}}
-        <li>该用户暂无任何权限</li>
-        {{/userPermissions}}
-      </ul>
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">权限状态 ({{grantedCount}}/{{totalCount}})</h2>
+        <div class="section-actions">
+            <button class="btn btn-primary btn-sm" onclick="savePermissions()">
+                <span class="btn-icon">💾</span> 保存更改
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="resetChanges()">
+                <span class="btn-icon">↩️</span> 重置
+            </button>
+        </div>
     </div>
     
-    <div class="permissions-section">
-      <h2>可授予权限</h2>
-      <ul class="permission-list">
-        {{#missingPermissions}}
-        <li class="permission-item no-permission">
-          <span>{{.}}</span>
-          <button class="grant-btn" onclick="grantPermission('{{userId}}', '{{.}}')">授予</button>
-        </li>
-        {{/missingPermissions}}
-        {{^missingPermissions}}
-        <li>该用户已拥有所有权限</li>
-        {{/missingPermissions}}
-      </ul>
+    <div class="permissions-list">
+        {{#permissions}}
+        <div class="permission-item">
+            <label class="permission-label">
+                <input type="checkbox" 
+                       class="permission-checkbox" 
+                       value="{{code}}" 
+                       data-original="{{granted}}"
+                       {{#granted}}checked{{/granted}}>
+                <div class="permission-content">
+                    <div class="permission-header">
+                        <span class="permission-code">{{code}}</span>
+                        <span class="permission-name">{{name}}</span>
+                    </div>
+                    {{#description}}
+                    <div class="permission-description">{{description}}</div>
+                    {{/description}}
+                    {{#pluginName}}
+                    <div class="permission-plugin">来源：{{pluginName}}</div>
+                    {{/pluginName}}
+                </div>
+            </label>
+        </div>
+        {{/permissions}}
+        {{^permissions}}
+        <div class="empty-state">
+            <div class="empty-icon">🔒</div>
+            <p>暂无可分配的权限</p>
+        </div>
+        {{/permissions}}
     </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">操作说明</h2>
+    <div class="info-box">
+        <p>✅ 勾选权限以授予用户相应的访问权限</p>
+        <p>❌ 取消勾选以撤销用户的权限</p>
+        <p>💾 记得点击"保存更改"按钮以应用修改</p>
+        <p>🔄 修改后的权限会显示为高亮状态</p>
+    </div>
+</div>
+
+<style>
+/* 用户权限管理特定样式 */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.permissions-list {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.permission-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.permission-item:last-child {
+    border-bottom: none;
+}
+
+.permission-label {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    padding: 10px;
+    border-radius: 4px;
+    margin: -10px;
+}
+
+.permission-label:hover {
+    background-color: #f8f9fa;
+}
+
+.permission-label.changed {
+    background-color: #fff3cd;
+}
+
+.permission-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    margin-top: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.permission-content {
+    flex: 1;
+}
+
+.permission-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.permission-code {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #495057;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.permission-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.permission-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 3px;
+}
+
+.permission-plugin {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.info-box {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.info-box p {
+    margin: 8px 0;
+    color: #495057;
+}
+</style>
+
+<script>
+// 追踪修改的权限
+let changedPermissions = new Set();
+
+// 监听权限复选框变化
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.permission-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const original = this.getAttribute('data-original') === 'true';
+            const current = this.checked;
+            const label = this.closest('.permission-label');
+            
+            if (original !== current) {
+                changedPermissions.add(this.value);
+                label.classList.add('changed');
+            } else {
+                changedPermissions.delete(this.value);
+                label.classList.remove('changed');
+            }
+        });
+    });
+});
+
+function savePermissions() {
+    const userId = '{{userId}}';
+    const checkboxes = document.querySelectorAll('.permission-checkbox');
+    const permissions = [];
     
-    <div style="margin-top: 20px;">
-      <a href="/page/auth/permissions">返回权限列表</a>
-    </div>
-  </div>
-  
-  <script>
-    function grantPermission(userId, permission) {
-      fetch('/auth/permissions/' + userId, {
-        method: 'POST',
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            permissions.push(checkbox.value);
+        }
+    });
+    
+    // 显示加载状态
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="btn-icon">⏳</span> 保存中...';
+    
+    // 发送权限更新请求
+    fetch(`/auth/permissions/${userId}`, {
+        method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ permission: permission })
-      })
-      .then(response => response.json())
-      .then(data => {
+        body: JSON.stringify({ permissions })
+    })
+    .then(response => response.json())
+    .then(data => {
         if (data.success) {
-          location.reload();
+            // 更新原始状态
+            checkboxes.forEach(checkbox => {
+                checkbox.setAttribute('data-original', checkbox.checked);
+            });
+            // 清除修改标记
+            changedPermissions.clear();
+            document.querySelectorAll('.permission-label.changed').forEach(label => {
+                label.classList.remove('changed');
+            });
+            alert('权限更新成功！');
+        } else {
+            alert('权限更新失败：' + (data.error || '未知错误'));
         }
-      });
-    }
-    
-    function revokePermission(userId, permission) {
-      fetch('/auth/permissions/' + userId + '/' + permission, {
-        method: 'DELETE'
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          location.reload();
-        }
-      });
-    }
-  </script>
-</body>
-</html> 
+    })
+    .catch(error => {
+        alert('请求失败：' + error.message);
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+function resetChanges() {
+    const checkboxes = document.querySelectorAll('.permission-checkbox');
+    checkboxes.forEach(checkbox => {
+        const original = checkbox.getAttribute('data-original') === 'true';
+        checkbox.checked = original;
+        checkbox.closest('.permission-label').classList.remove('changed');
+    });
+    changedPermissions.clear();
+}
+</script> 

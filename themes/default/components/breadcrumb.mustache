@@ -1,0 +1,14 @@
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        {{#breadcrumbs}}
+        <li {{#isLast}}class="is-active"{{/isLast}}>
+            {{#isLast}}
+            <span>{{title}}</span>
+            {{/isLast}}
+            {{^isLast}}
+            <a href="{{url}}">{{title}}</a>
+            {{/isLast}}
+        </li>
+        {{/breadcrumbs}}
+    </ul>
+</nav> 

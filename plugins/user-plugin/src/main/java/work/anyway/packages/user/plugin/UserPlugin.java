@@ -1,9 +1,6 @@
 package work.anyway.packages.user.plugin;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.mustachejava.DefaultMustacheFactory;
-import com.github.mustachejava.Mustache;
-import com.github.mustachejava.MustacheFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
@@ -13,13 +10,7 @@ import work.anyway.annotations.*;
 import work.anyway.interfaces.user.User;
 import work.anyway.interfaces.user.UserService;
 import work.anyway.interfaces.user.AccountService;
-import work.anyway.interfaces.user.AccountType;
-import work.anyway.interfaces.user.UserAccount;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +19,7 @@ import java.util.Optional;
 /**
  * 用户管理插件
  */
-@Plugin(name = "User Plugin", version = "1.0.0", description = "管理系统用户，包括创建、查看、编辑用户信息", icon = "👤", mainPagePath = "/page/users/")
+@Plugin(name = "User Plugin", version = "1.0.0", description = "管理系统用户，包括创建、查看、编辑用户信息", icon = "👤", mainPagePath = "/users/")
 // 声明权限定义
 @PermissionDef(code = "user.view", name = "查看用户", description = "查看用户列表和详情", defaultRoles = { "admin", "manager" })
 @PermissionDef(code = "user.create", name = "创建用户", description = "创建新用户", defaultRoles = { "admin" })
@@ -37,7 +28,7 @@ import java.util.Optional;
 // 声明一级菜单
 @MenuItem(id = "users", title = "用户管理", icon = "👤", order = 20)
 @Controller
-@RequestMapping("/")
+@RequestMapping("/users")
 @Intercepted({ "SystemRequestLog" }) // 类级别：所有方法都使用系统请求日志拦截器
 public class UserPlugin {
 
@@ -50,14 +41,13 @@ public class UserPlugin {
   private AccountService accountService;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
-  private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
 
   // API 端点
 
   /**
    * 获取所有用户 - 需要认证
    */
-  @GetMapping("/api/users")
+  @GetMapping("/api")
   @Intercepted({ "SimpleAuth", "OperationLog" }) // 方法级别：需要认证和操作日志记录
   @RequirePermission("user.view")
   public void getAllUsers(RoutingContext ctx) {
@@ -87,7 +77,7 @@ public class UserPlugin {
   /**
    * 根据ID获取用户 - 需要认证
    */
-  @GetMapping("/api/users/:id")
+  @GetMapping("/api/:id")
   @Intercepted({ "SimpleAuth", "OperationLog" })
   @RequirePermission("user.view")
   public void getUserById(RoutingContext ctx) {
@@ -119,7 +109,7 @@ public class UserPlugin {
   /**
    * 创建用户 - 需要认证
    */
-  @PostMapping("/api/users")
+  @PostMapping("/api")
   @Intercepted({ "SimpleAuth", "OperationLog" })
   @RequirePermission("user.create")
   public void createUser(RoutingContext ctx) {
@@ -181,7 +171,7 @@ public class UserPlugin {
   /**
    * 更新用户
    */
-  @RequestMapping(value = "/users/:id", method = "PUT")
+  @RequestMapping(value = "/api/:id", method = "PUT")
   @Intercepted({ "SimpleAuth", "OperationLog" })
   @RequirePermission("user.edit")
   public void updateUser(RoutingContext ctx) {
@@ -247,7 +237,7 @@ public class UserPlugin {
   /**
    * 删除用户
    */
-  @RequestMapping(value = "/users/:id", method = "DELETE")
+  @RequestMapping(value = "/api/:id", method = "DELETE")
   @Intercepted({ "SimpleAuth", "OperationLog" })
   @RequirePermission("user.delete")
   public void deleteUser(RoutingContext ctx) {
@@ -280,7 +270,7 @@ public class UserPlugin {
   /**
    * 根据邮箱查找用户
    */
-  @GetMapping("/users/email/:email")
+  @GetMapping("/api/email/:email")
   public void getUserByEmail(RoutingContext ctx) {
     String email = ctx.pathParam("email");
     LOG.debug("Getting user by email: {}", email);
@@ -310,126 +300,80 @@ public class UserPlugin {
   // 页面路由
 
   /**
-   * 用户管理首页
+   * 用户管理首页 - 使用简化的渲染方式
    */
-  @GetMapping("/page/users/")
+  @GetMapping("/")
   @MenuItem(title = "用户概览", parentId = "users", order = 1, permissions = { "user.view" })
+  @RenderTemplate("index") // 指定模板，框架自动处理渲染
   public void getUserHomePage(RoutingContext ctx) {
-    LOG.info("Rendering user management homepage...");
-    try {
-      // 获取用户统计数据
-      List<User> allUsers = userService.getAllUsers();
+    LOG.info("getUserHomePage called");
 
-      // 计算统计信息
-      long totalUsers = allUsers.size();
-      long activeUsers = allUsers.stream()
-          .filter(User::isActive)
-          .count();
-      long adminUsers = allUsers.stream()
-          .filter(user -> "admin".equals(user.getRole()))
-          .count();
+    // 业务逻辑：只需要准备数据
+    List<User> allUsers = userService.getAllUsers();
 
-      // 计算今日新增用户（简化实现，实际应该根据创建时间计算）
-      long newUsersToday = 0; // TODO: 实现基于时间的统计
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "用户概览");
+    data.put("pluginName", "User Plugin");
+    data.put("pluginVersion", "1.0.0");
+    data.put("userCount", allUsers.size());
+    data.put("activeUserCount", allUsers.stream().filter(User::isActive).count());
+    data.put("adminUserCount", allUsers.stream().filter(u -> "admin".equals(u.getRole())).count());
+    data.put("newUsersToday", 0); // TODO: 实现基于时间的统计
 
-      Map<String, Object> data = new HashMap<>();
-      data.put("pluginName", "User Plugin");
-      data.put("pluginVersion", "1.0.0");
-      data.put("userCount", totalUsers);
-      data.put("activeUserCount", activeUsers);
-      data.put("adminUserCount", adminUsers);
-      data.put("newUsersToday", newUsersToday);
-
-      LOG.info("Rendering homepage with stats: total={}, active={}, admin={}",
-          totalUsers, activeUsers, adminUsers);
-      String html = renderTemplate("index.mustache", data);
-      LOG.info("Homepage template rendered successfully, HTML length: {}", html.length());
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-
-      LOG.info("User homepage response sent successfully");
-    } catch (Exception e) {
-      LOG.error("Failed to render user homepage", e);
-      ctx.response()
-          .setStatusCode(500)
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end("<html><body><h1>Internal Server Error</h1><p>" + e.getMessage() + "</p></body></html>");
-    }
+    // 设置数据，框架会自动渲染
+    ctx.put("viewData", data);
+    LOG.info("Data set in context, viewData keys: {}", data.keySet());
   }
 
   /**
-   * 用户列表页面 - 必须在 /:id 路由之前定义
+   * 用户列表页面 - 使用简化的渲染方式
    */
-  @GetMapping("/page/users/list")
+  @GetMapping("/list")
   @MenuItem(title = "用户列表", parentId = "users", order = 2, permissions = { "user.view" })
+  @RenderTemplate("users")
   public void getUsersPage(RoutingContext ctx) {
-    LOG.info("Rendering users page...");
-    try {
-      LOG.info("Getting all users from service...");
-      List<User> users = userService.getAllUsers();
-      LOG.info("Retrieved {} users from service", users.size());
+    // 业务逻辑：获取用户列表
+    List<User> users = userService.getAllUsers();
+    List<Map<String, Object>> userMaps = users.stream()
+        .map(this::convertUserToMap)
+        .toList();
 
-      // 转换为Map格式供模板使用
-      List<Map<String, Object>> userMaps = users.stream()
-          .map(this::convertUserToMap)
-          .toList();
+    // 准备模板数据
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "用户列表");
+    data.put("users", userMaps);
+    data.put("userCount", userMaps.size());
+    data.put("hasUsers", !userMaps.isEmpty());
 
-      Map<String, Object> data = new HashMap<>();
-      data.put("users", userMaps);
-      data.put("userCount", userMaps.size());
-      data.put("hasUsers", !userMaps.isEmpty());
-
-      LOG.info("Rendering template with data: userCount={}, hasUsers={}", users.size(), !users.isEmpty());
-      String html = renderTemplate("users.mustache", data);
-      LOG.info("Template rendered successfully, HTML length: {}", html.length());
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-
-      LOG.info("Users page response sent successfully");
-    } catch (Exception e) {
-      LOG.error("Failed to render users page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end("<html><body><h1>Internal Server Error</h1><p>" + e.getMessage() + "</p></body></html>");
-    }
+    // 设置数据
+    ctx.put("viewData", data);
   }
 
   /**
-   * 创建用户页面 - 必须在 /:id 路由之前定义
+   * 创建用户页面 - 使用简化的渲染方式
    */
-  @GetMapping("/page/users/create")
+  @GetMapping("/create")
   @MenuItem(title = "创建用户", parentId = "users", order = 3, permissions = { "user.create" })
+  @RenderTemplate("create-user")
   public void getCreateUserPage(RoutingContext ctx) {
-    try {
-      Map<String, Object> data = new HashMap<>();
-      data.put("action", "create");
-      data.put("submitUrl", "/users");
-      data.put("method", "POST");
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "创建用户");
+    data.put("action", "create");
+    data.put("submitUrl", "/api/users");
+    data.put("method", "POST");
 
-      String html = renderTemplate("create-user.mustache", data);
-
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8")
-          .end(html);
-    } catch (Exception e) {
-      LOG.error("Failed to render create user page", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
-    }
+    ctx.put("viewData", data);
   }
 
   /**
-   * 编辑用户页面 - 必须在 /:id 路由之前定义
+   * 编辑用户页面 - 使用简化的渲染方式
    */
-  @GetMapping("/page/users/:id/edit")
+  @GetMapping("/:id/edit")
+  @RenderTemplate("edit-user")
+  @RequirePermission("user.edit")
   public void getEditUserPage(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
+    LOG.debug("Getting edit page for user: {}", userId);
 
     try {
       Optional<User> userOpt = userService.getUserById(userId);
@@ -437,20 +381,21 @@ public class UserPlugin {
       if (userOpt.isPresent()) {
         Map<String, Object> userMap = convertUserToMap(userOpt.get());
         Map<String, Object> data = new HashMap<>();
+        data.put("title", "编辑用户");
         data.put("user", userMap);
+        data.put("action", "edit");
+        data.put("submitUrl", "/api/users/" + userId);
+        data.put("method", "PUT");
 
-        String html = renderTemplate("edit-user.mustache", data);
-
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
+        // 设置数据，框架会自动渲染
+        ctx.put("viewData", data);
       } else {
         ctx.response()
             .setStatusCode(404)
             .end("User not found");
       }
     } catch (Exception e) {
-      LOG.error("Failed to render edit user page", e);
+      LOG.error("Failed to get user for edit", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -458,11 +403,14 @@ public class UserPlugin {
   }
 
   /**
-   * 用户详情页面 - 必须在最后定义，避免与具体路径冲突
+   * 用户详情页面 - 使用简化的渲染方式
    */
-  @GetMapping("/page/users/:id")
+  @GetMapping("/:id")
+  @RenderTemplate("user-detail")
+  @RequirePermission("user.view")
   public void getUserDetailPage(RoutingContext ctx) {
     String userId = ctx.pathParam("id");
+    LOG.debug("Getting detail page for user: {}", userId);
 
     try {
       Optional<User> userOpt = userService.getUserById(userId);
@@ -470,20 +418,20 @@ public class UserPlugin {
       if (userOpt.isPresent()) {
         Map<String, Object> userMap = convertUserToMap(userOpt.get());
         Map<String, Object> data = new HashMap<>();
+        data.put("title", "用户详情");
         data.put("user", userMap);
+        data.put("canEdit", true); // TODO: 根据权限判断
+        data.put("canDelete", true); // TODO: 根据权限判断
 
-        String html = renderTemplate("user-detail.mustache", data);
-
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8")
-            .end(html);
+        // 设置数据，框架会自动渲染
+        ctx.put("viewData", data);
       } else {
         ctx.response()
             .setStatusCode(404)
             .end("User not found");
       }
     } catch (Exception e) {
-      LOG.error("Failed to render user detail page", e);
+      LOG.error("Failed to get user detail", e);
       ctx.response()
           .setStatusCode(500)
           .end("Internal Server Error");
@@ -501,34 +449,6 @@ public class UserPlugin {
         .setStatusCode(statusCode)
         .putHeader("content-type", "application/json")
         .end(error.encode());
-  }
-
-  private String renderTemplate(String templateName, Map<String, Object> data) {
-    LOG.info("Rendering template: {}", templateName);
-    LOG.debug("Template data: {}", data);
-
-    try (InputStream is = getClass().getResourceAsStream("/user-plugin/templates/" + templateName)) {
-      if (is == null) {
-        LOG.error("Template not found: /user-plugin/templates/{}", templateName);
-        throw new RuntimeException("Template not found: " + templateName);
-      }
-
-      LOG.info("Template found, compiling...");
-      Mustache mustache = mustacheFactory.compile(
-          new InputStreamReader(is, StandardCharsets.UTF_8),
-          templateName);
-
-      StringWriter writer = new StringWriter();
-      LOG.info("Executing template...");
-      mustache.execute(writer, data).flush();
-      String result = writer.toString();
-
-      LOG.info("Template executed successfully, result length: {}", result.length());
-      return result;
-    } catch (Exception e) {
-      LOG.error("Error rendering template: " + templateName, e);
-      throw new RuntimeException("Template rendering error: " + e.getMessage(), e);
-    }
   }
 
   /**

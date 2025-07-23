@@ -1,532 +1,144 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>用户登录 - Work Anyway</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .login-container {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-      width: 100%;
-      max-width: 400px;
-      animation: slideIn 0.5s ease-out;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .login-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 40px 30px;
-      text-align: center;
-    }
-
-    .login-header h1 {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .login-header p {
-      opacity: 0.9;
-      font-size: 16px;
-    }
-
-    .login-form {
-      padding: 40px 30px;
-    }
-
-    .form-group {
-      margin-bottom: 24px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      color: #374151;
-      font-weight: 500;
-      font-size: 14px;
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 12px 16px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: all 0.3s ease;
-      background-color: #f9fafb;
-    }
-
-    .form-control:focus {
-      outline: none;
-      border-color: #667eea;
-      background-color: white;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-control.error {
-      border-color: #ef4444;
-      background-color: #fef2f2;
-    }
-
-    .password-group {
-      position: relative;
-    }
-
-    .password-toggle {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: #6b7280;
-      cursor: pointer;
-      font-size: 14px;
-      padding: 4px;
-    }
-
-    .password-toggle:hover {
-      color: #374151;
-    }
-
-    .form-options {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      font-size: 14px;
-    }
-
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-    }
-
-    .checkbox-group input {
-      margin-right: 8px;
-    }
-
-    .forgot-link {
-      color: #667eea;
-      text-decoration: none;
-    }
-
-    .forgot-link:hover {
-      text-decoration: underline;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid #ffffff40;
-      border-top: 2px solid #ffffff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-right: 8px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .error-message {
-      background-color: #fef2f2;
-      color: #dc2626;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      border-left: 4px solid #dc2626;
-      font-size: 14px;
-      display: none;
-    }
-
-    .success-message {
-      background-color: #f0fdf4;
-      color: #16a34a;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      border-left: 4px solid #16a34a;
-      font-size: 14px;
-      display: none;
-    }
-
-    .login-footer {
-      text-align: center;
-      padding: 20px 30px;
-      background-color: #f9fafb;
-      border-top: 1px solid #e5e7eb;
-    }
-
-    .login-footer p {
-      color: #6b7280;
-      font-size: 14px;
-      margin-bottom: 12px;
-    }
-
-    .register-link {
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .register-link:hover {
-      text-decoration: underline;
-    }
-
-    .field-error {
-      color: #dc2626;
-      font-size: 12px;
-      margin-top: 4px;
-      display: none;
-    }
-
-    .attempts-warning {
-      background-color: #fef3c7;
-      color: #d97706;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin-bottom: 16px;
-      display: none;
-    }
-
-    @media (max-width: 480px) {
-      .login-container {
-        margin: 10px;
-      }
-      
-      .login-header {
-        padding: 30px 20px;
-      }
-      
-      .login-form {
-        padding: 30px 20px;
-      }
-      
-      .login-footer {
-        padding: 20px;
-      }
-    }
-  </style>
-</head>
-<body>
+<div class="auth-page-container">
   <div class="login-container">
     <div class="login-header">
-      <h1>🔐 欢迎回来</h1>
-      <p>登录到 Work Anyway 系统</p>
+      <h1>🔐 Work Anyway</h1>
+      <p>欢迎回来，请登录您的账户</p>
     </div>
     
-    <div class="login-form">
-      <div class="error-message" id="errorMessage"></div>
-      <div class="success-message" id="successMessage"></div>
-      <div class="attempts-warning" id="attemptsWarning"></div>
+    <form id="loginForm" class="login-form">
+      <div class="form-group">
+        <label for="identifier">邮箱 / 手机号 / 用户名</label>
+        <input 
+          type="text" 
+          id="identifier" 
+          name="identifier" 
+          placeholder="请输入邮箱、手机号或用户名"
+          required
+          autocomplete="username"
+        >
+      </div>
       
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="email">邮箱地址</label>
-          <input type="email" id="email" name="email" class="form-control" placeholder="请输入您的邮箱" required>
-          <div class="field-error" id="emailError"></div>
-        </div>
-        
-        <div class="form-group">
-          <label for="password">密码</label>
-          <div class="password-group">
-            <input type="password" id="password" name="password" class="form-control" placeholder="请输入您的密码" required>
-            <button type="button" class="password-toggle" id="passwordToggle">👁️</button>
-          </div>
-          <div class="field-error" id="passwordError"></div>
-        </div>
-        
-        <div class="form-options">
-          <div class="checkbox-group">
-            <input type="checkbox" id="rememberMe" name="rememberMe">
-            <label for="rememberMe">记住我</label>
-          </div>
-          <a href="/page/auth/forgot-password" class="forgot-link">忘记密码？</a>
-        </div>
-        
-        <button type="submit" class="btn" id="loginBtn">
-          <span id="loginText">登录</span>
-          <div class="spinner" id="loginSpinner" style="display: none;"></div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          placeholder="请输入密码"
+          required
+          autocomplete="current-password"
+        >
+      </div>
+      
+      <div class="form-options">
+        <label class="remember-me">
+          <input type="checkbox" name="rememberMe" id="rememberMe">
+          <span>记住我</span>
+        </label>
+        <a href="/auth/forgot-password" class="forgot-link">忘记密码？</a>
+      </div>
+      
+      <div id="errorMessage" class="error-message" style="display: none;"></div>
+      
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <span class="btn-text">登 录</span>
+        <span class="btn-loading" style="display: none;">
+          <span class="spinner"></span>
+          登录中...
+        </span>
+      </button>
+      
+      <div class="divider">
+        <span>或</span>
+      </div>
+      
+      <div class="social-login">
+        <button type="button" class="social-btn" onclick="alert('暂未开放')">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          使用 Google 登录
         </button>
-      </form>
-    </div>
-    
-    <div class="login-footer">
-      <p>还没有账户？</p>
-      <a href="/page/auth/register" class="register-link">立即注册</a>
-    </div>
+      </div>
+      
+      <div class="register-link">
+        还没有账户？<a href="/auth/register">立即注册</a>
+      </div>
+    </form>
   </div>
+</div>
 
-  <script>
-    class LoginManager {
-      constructor() {
-        this.form = document.getElementById('loginForm');
-        this.emailInput = document.getElementById('email');
-        this.passwordInput = document.getElementById('password');
-        this.loginBtn = document.getElementById('loginBtn');
-        this.loginText = document.getElementById('loginText');
-        this.loginSpinner = document.getElementById('loginSpinner');
-        this.passwordToggle = document.getElementById('passwordToggle');
-        
-        this.initEventListeners();
-        this.loadRememberedEmail();
-      }
-
-      initEventListeners() {
-        this.form.addEventListener('submit', (e) => this.handleLogin(e));
-        this.passwordToggle.addEventListener('click', () => this.togglePassword());
-        
-        // 实时验证
-        this.emailInput.addEventListener('blur', () => this.validateEmail());
-        this.passwordInput.addEventListener('input', () => this.clearFieldError('password'));
-        
-        // 回车键支持
-        this.emailInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') this.passwordInput.focus();
-        });
-      }
-
-      async handleLogin(e) {
-        e.preventDefault();
-        
-        if (!this.validateForm()) {
-          return;
-        }
-
-        this.setLoading(true);
-        this.clearMessages();
-
-        const formData = new FormData(this.form);
-        const loginData = {
-          email: formData.get('email').trim().toLowerCase(),
-          password: formData.get('password'),
-          rememberMe: formData.get('rememberMe') === 'on'
-        };
-
-        try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(loginData)
-          });
-
-          const result = await response.json();
-
-          if (result.success) {
-            this.handleLoginSuccess(result.data, loginData.rememberMe);
-          } else {
-            this.handleLoginError(result.error || '登录失败，请重试');
-          }
-
-        } catch (error) {
-          console.error('Login error:', error);
-          this.showError('网络错误，请检查您的连接后重试');
-        } finally {
-          this.setLoading(false);
-        }
-      }
-
-      handleLoginSuccess(data, rememberMe) {
-        // 存储 token
-        const storage = rememberMe ? localStorage : sessionStorage;
-        storage.setItem('accessToken', data.accessToken);
-        storage.setItem('refreshToken', data.refreshToken);
-        storage.setItem('userInfo', JSON.stringify(data.user));
-
-        // 记住邮箱
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', this.emailInput.value);
-        }
-
-        this.showSuccess('登录成功！正在跳转...');
-
-        // 跳转到目标页面
-        setTimeout(() => {
-          const redirectUrl = new URLSearchParams(window.location.search).get('redirect') || '/page/';
-          window.location.href = redirectUrl;
-        }, 1000);
-      }
-
-      handleLoginError(errorMessage) {
-        this.showError(errorMessage);
-        
-        // 处理特定错误
-        if (errorMessage.includes('attempts')) {
-          this.showAttemptsWarning('登录尝试次数过多，请稍后再试');
-        }
-        
-        // 清空密码
-        this.passwordInput.value = '';
-        this.passwordInput.focus();
-      }
-
-      validateForm() {
-        let isValid = true;
-        
-        // 验证邮箱
-        if (!this.validateEmail()) {
-          isValid = false;
-        }
-        
-        // 验证密码
-        if (!this.passwordInput.value.trim()) {
-          this.showFieldError('password', '请输入密码');
-          isValid = false;
-        }
-        
-        return isValid;
-      }
-
-      validateEmail() {
-        const email = this.emailInput.value.trim();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
-        if (!email) {
-          this.showFieldError('email', '请输入邮箱地址');
-          return false;
-        }
-        
-        if (!emailRegex.test(email)) {
-          this.showFieldError('email', '请输入有效的邮箱地址');
-          return false;
-        }
-        
-        this.clearFieldError('email');
-        return true;
-      }
-
-      togglePassword() {
-        const type = this.passwordInput.type === 'password' ? 'text' : 'password';
-        this.passwordInput.type = type;
-        this.passwordToggle.textContent = type === 'password' ? '👁️' : '🙈';
-      }
-
-      setLoading(loading) {
-        this.loginBtn.disabled = loading;
-        this.loginText.style.display = loading ? 'none' : 'inline';
-        this.loginSpinner.style.display = loading ? 'inline-block' : 'none';
-      }
-
-      showError(message) {
-        const errorDiv = document.getElementById('errorMessage');
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-      }
-
-      showSuccess(message) {
-        const successDiv = document.getElementById('successMessage');
-        successDiv.textContent = message;
-        successDiv.style.display = 'block';
-      }
-
-      showAttemptsWarning(message) {
-        const warningDiv = document.getElementById('attemptsWarning');
-        warningDiv.textContent = message;
-        warningDiv.style.display = 'block';
-      }
-
-      clearMessages() {
-        document.getElementById('errorMessage').style.display = 'none';
-        document.getElementById('successMessage').style.display = 'none';
-        document.getElementById('attemptsWarning').style.display = 'none';
-      }
-
-      showFieldError(field, message) {
-        const errorDiv = document.getElementById(field + 'Error');
-        const input = document.getElementById(field);
-        
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-        input.classList.add('error');
-      }
-
-      clearFieldError(field) {
-        const errorDiv = document.getElementById(field + 'Error');
-        const input = document.getElementById(field);
-        
-        errorDiv.style.display = 'none';
-        input.classList.remove('error');
-      }
-
-      loadRememberedEmail() {
-        const rememberedEmail = localStorage.getItem('rememberedEmail');
-        if (rememberedEmail) {
-          this.emailInput.value = rememberedEmail;
-          document.getElementById('rememberMe').checked = true;
-          this.passwordInput.focus();
-        } else {
-          this.emailInput.focus();
-        }
-      }
-    }
-
-    // 初始化登录管理器
-    document.addEventListener('DOMContentLoaded', () => {
-      new LoginManager();
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const submitBtn = document.getElementById('submitBtn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const btnLoading = submitBtn.querySelector('.btn-loading');
+  const errorMessage = document.getElementById('errorMessage');
+  
+  // 显示加载状态
+  submitBtn.disabled = true;
+  btnText.style.display = 'none';
+  btnLoading.style.display = 'inline-flex';
+  errorMessage.style.display = 'none';
+  
+  const formData = {
+    identifier: document.getElementById('identifier').value,
+    password: document.getElementById('password').value,
+    rememberMe: document.getElementById('rememberMe').checked
+  };
+  
+  try {
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
     });
-  </script>
-</body>
-</html> 
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // 保存token
+      localStorage.setItem('authToken', result.data.token);
+      if (formData.rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      }
+      
+      // 跳转到目标页面或首页
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
+      window.location.href = redirectUrl || '/';
+    } else {
+      // 显示错误信息
+      errorMessage.textContent = result.error || '登录失败，请重试';
+      errorMessage.style.display = 'block';
+      
+      // 震动效果
+      document.querySelector('.login-container').classList.add('shake');
+      setTimeout(() => {
+        document.querySelector('.login-container').classList.remove('shake');
+      }, 500);
+    }
+  } catch (error) {
+    errorMessage.textContent = '网络错误，请稍后重试';
+    errorMessage.style.display = 'block';
+  } finally {
+    // 恢复按钮状态
+    submitBtn.disabled = false;
+    btnText.style.display = 'inline';
+    btnLoading.style.display = 'none';
+  }
+});
+
+// 自动填充记住的用户名
+window.onload = function() {
+  if (localStorage.getItem('rememberMe') === 'true') {
+    document.getElementById('rememberMe').checked = true;
+  }
+};
+</script> 

@@ -14,6 +14,13 @@ logging.level=INFO
 # 插件配置
 plugins.scan.packages=work.anyway.packages
 
+# 主题配置
+theme.directory=themes
+theme.active=default
+theme.fallback=default
+theme.cache.enabled=true
+theme.watch.enabled=false
+
 # 认证配置
 auth.jwt.secret=your-secret-key-here
 auth.jwt.expiration=3600

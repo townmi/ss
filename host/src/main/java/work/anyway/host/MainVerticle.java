@@ -76,7 +76,7 @@ public class MainVerticle extends AbstractVerticle {
     springContext.register(RouteMappingBeanPostProcessor.class);
 
     // 扫描包
-    LOG.info("Scanning packages for components...");
+    LOG.debug("Scanning packages for components...");
     ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(springContext);
 
     // 从配置中获取要扫描的包，支持多个包用逗号分隔
@@ -85,7 +85,7 @@ public class MainVerticle extends AbstractVerticle {
     for (String pkg : packages) {
       String trimmedPkg = pkg.trim();
       if (!trimmedPkg.isEmpty()) {
-        LOG.info("Scanning package: {}", trimmedPkg);
+        LOG.debug("Scanning package: {}", trimmedPkg);
         scanner.scan(trimmedPkg);
       }
     }
@@ -93,7 +93,7 @@ public class MainVerticle extends AbstractVerticle {
     // 刷新容器
     springContext.refresh();
 
-    LOG.info("Spring Container initialized with {} beans", springContext.getBeanDefinitionCount());
+    LOG.debug("Spring Container initialized with {} beans", springContext.getBeanDefinitionCount());
   }
 
   private ClassLoader loadExternalJars() throws Exception {
@@ -103,12 +103,12 @@ public class MainVerticle extends AbstractVerticle {
     String serviceDir = ConfigLoader.getString(CONFIG_SERVICES_DIR, DEFAULT_SERVICES_DIR);
     File servicesDirectory = new File(serviceDir);
     if (servicesDirectory.exists() && servicesDirectory.isDirectory()) {
-      LOG.info(LOG_LOADING_FROM, "services", servicesDirectory.getAbsolutePath());
+      LOG.debug(LOG_LOADING_FROM, "services", servicesDirectory.getAbsolutePath());
       File[] serviceJars = servicesDirectory.listFiles((d, name) -> name.endsWith(JAR_EXTENSION));
       if (serviceJars != null) {
         for (File jar : serviceJars) {
           urls.add(jar.toURI().toURL());
-          LOG.info(LOG_FOUND_JAR, "service", jar.getName());
+          LOG.debug(LOG_FOUND_JAR, "service", jar.getName());
         }
       }
     }
@@ -117,12 +117,12 @@ public class MainVerticle extends AbstractVerticle {
     String pluginDir = ConfigLoader.getString(CONFIG_PLUGINS_DIR, DEFAULT_PLUGINS_DIR);
     File pluginsDirectory = new File(pluginDir);
     if (pluginsDirectory.exists() && pluginsDirectory.isDirectory()) {
-      LOG.info(LOG_LOADING_FROM, "plugins", pluginsDirectory.getAbsolutePath());
+      LOG.debug(LOG_LOADING_FROM, "plugins", pluginsDirectory.getAbsolutePath());
       File[] pluginJars = pluginsDirectory.listFiles((d, name) -> name.endsWith(JAR_EXTENSION));
       if (pluginJars != null) {
         for (File jar : pluginJars) {
           urls.add(jar.toURI().toURL());
-          LOG.info(LOG_FOUND_JAR, "plugin", jar.getName());
+          LOG.debug(LOG_FOUND_JAR, "plugin", jar.getName());
         }
       }
     }
