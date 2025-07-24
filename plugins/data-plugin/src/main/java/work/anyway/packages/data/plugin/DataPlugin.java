@@ -1,5 +1,6 @@
 package work.anyway.packages.data.plugin;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
@@ -26,7 +27,7 @@ import java.util.*;
  * 数据访问插件
  * 提供通用的数据管理功能，支持多数据源
  */
-@Plugin(name = "Data Plugin", version = "1.0.0", description = "通用数据管理插件，支持动态创建和管理数据集合", icon = "📊", mainPagePath = "/page/data/")
+@Plugin(name = "Data Plugin", version = "1.0.0", description = "通用数据管理插件，支持动态创建和管理数据集合", icon = "📊", mainPagePath = "/data/")
 @Controller
 @RequestMapping("/")
 @MenuItem(id = "data", title = "数据管理", icon = "📊", order = 40)
@@ -51,135 +52,93 @@ public class DataPlugin {
   /**
    * 主页路由
    */
-  @GetMapping("/page/data/")
+  @GetMapping("/data/")
   @MenuItem(title = "数据概览", parentId = "data", order = 1, permissions = { "data.view" })
+  @RenderTemplate("index")
   public void handleMainPage(RoutingContext ctx) {
-    try {
-      // 获取所有集合
-      List<String> collections = getAllCollections();
+    // 获取所有集合
+    List<String> collections = getAllCollections();
 
-      Map<String, Object> data = new HashMap<>();
-      data.put("title", "数据管理");
-      data.put("collections", collections);
-      data.put("hasCollections", !collections.isEmpty());
-      data.put("collectionCount", collections.size());
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "数据管理");
+    data.put("collections", collections);
+    data.put("hasCollections", !collections.isEmpty());
+    data.put("collectionCount", collections.size());
 
-      // 设置模板数据供主题系统使用
-      ctx.put("templateData", data);
-      ctx.put("_layout", "base");
-
-      String html = renderTemplate("index.mustache", data);
-      ctx.put("_rendered_content", html);
-
-      // 设置响应头但不结束响应，让拦截器处理
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8");
-
-      // 如果没有主题处理器，直接发送响应
-      if (ctx.get("_theme_processor_available") == null) {
-        ctx.response().end(html);
-      }
-    } catch (Exception e) {
-      LOG.error("Error rendering main page", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
+    ctx.put("viewData", data);
+    LOG.info("Data set in context, viewData keys: {}", data.keySet());
   }
 
   /**
    * 集合详情页面
    */
-  @GetMapping("/page/data/collection/:name")
+  @GetMapping("/data/collection/:name")
+  @RenderTemplate("collection")
   public void handleCollectionPage(RoutingContext ctx) {
     String collectionName = ctx.pathParam("name");
+    LOG.info("handleCollectionPage called with collectionName: {}", collectionName);
+    // 获取查询参数
+    int page = Integer.parseInt(ctx.request().getParam("page", "1"));
+    int pageSize = Integer.parseInt(ctx.request().getParam("pageSize", "20"));
+    String sortBy = ctx.request().getParam("sortBy", "id");
+    boolean ascending = "asc".equals(ctx.request().getParam("order", "asc"));
 
-    vertx.executeBlocking(promise -> {
-      try {
-        // 获取查询参数
-        int page = Integer.parseInt(ctx.request().getParam("page", "1"));
-        int pageSize = Integer.parseInt(ctx.request().getParam("pageSize", "20"));
-        String sortBy = ctx.request().getParam("sortBy", "id");
-        boolean ascending = "asc".equals(ctx.request().getParam("order", "asc"));
+    // 构建查询选项
+    QueryOptions options = QueryOptions.create()
+        .page(page)
+        .pageSize(pageSize)
+        .sortBy(sortBy);
 
-        // 构建查询选项
-        QueryOptions options = QueryOptions.create()
-            .page(page)
-            .pageSize(pageSize)
-            .sortBy(sortBy);
+    if (!ascending) {
+      options.descending();
+    }
 
-        if (!ascending) {
-          options.descending();
-        }
+    // 查询数据
+    PageResult<Map<String, Object>> result = dataService.query(collectionName, options);
 
-        // 查询数据
-        PageResult<Map<String, Object>> result = dataService.query(collectionName, options);
+    // 准备模板数据
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "数据集合: " + collectionName);
+    data.put("collectionName", collectionName);
+    data.put("collection", collectionName); // 添加 collection 键，模板中也使用了
+    data.put("items", result.getData()); // 改为 items 以匹配模板
+    data.put("total", result.getTotal());
+    data.put("page", result.getPage());
+    data.put("pageSize", result.getPageSize());
+    data.put("totalPages", result.getTotalPages());
+    data.put("hasRecords", !result.getData().isEmpty());
+    data.put("hasPrevious", result.hasPrevious());
+    data.put("hasNext", result.hasNext());
+    data.put("sortBy", sortBy);
+    data.put("order", ascending ? "asc" : "desc");
 
-        // 准备模板数据
-        Map<String, Object> data = new HashMap<>();
-        data.put("title", "数据集合: " + collectionName);
-        data.put("collectionName", collectionName);
-        data.put("collection", collectionName); // 添加 collection 键，模板中也使用了
-        data.put("items", result.getData()); // 改为 items 以匹配模板
-        data.put("total", result.getTotal());
-        data.put("page", result.getPage());
-        data.put("pageSize", result.getPageSize());
-        data.put("totalPages", result.getTotalPages());
-        data.put("hasRecords", !result.getData().isEmpty());
-        data.put("hasPrevious", result.hasPrevious());
-        data.put("hasNext", result.hasNext());
-        data.put("sortBy", sortBy);
-        data.put("order", ascending ? "asc" : "desc");
+    // 分页信息
+    if (result.hasPrevious()) {
+      data.put("previousPage", page - 1);
+    }
+    if (result.hasNext()) {
+      data.put("nextPage", page + 1);
+    }
 
-        // 分页信息
-        if (result.hasPrevious()) {
-          data.put("previousPage", page - 1);
-        }
-        if (result.hasNext()) {
-          data.put("nextPage", page + 1);
-        }
-
-        // 获取字段名
-        if (!result.getData().isEmpty()) {
-          Set<String> fields = new LinkedHashSet<>();
-          fields.add("id"); // 确保 ID 在第一位
-          result.getData().forEach(record -> fields.addAll(record.keySet()));
-          data.put("fields", new ArrayList<>(fields));
-        } else {
-          data.put("fields", Collections.singletonList("id"));
-        }
-
-        // 设置模板数据供主题系统使用
-        ctx.put("templateData", data);
-        ctx.put("_layout", "base");
-
-        String html = renderTemplate("collection.mustache", data);
-        promise.complete(html);
-      } catch (Exception e) {
-        promise.fail(e);
-      }
-    }, res -> {
-      if (res.succeeded()) {
-        String html = (String) res.result();
-        ctx.put("_rendered_content", html);
-
-        // 设置响应头但不结束响应，让拦截器处理
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8");
-
-        // 如果没有主题处理器，直接发送响应
-        if (ctx.get("_theme_processor_available") == null) {
-          ctx.response().end(html);
-        }
-      } else {
-        LOG.error("Error rendering collection page", res.cause());
-        ctx.response().setStatusCode(500).end("Internal Server Error");
-      }
-    });
+    // 获取字段名
+    if (!result.getData().isEmpty()) {
+      Set<String> fields = new LinkedHashSet<>();
+      fields.add("id"); // 确保 ID 在第一位
+      result.getData().forEach(record -> fields.addAll(record.keySet()));
+      data.put("fields", new ArrayList<>(fields));
+    } else {
+      data.put("fields", Collections.singletonList("id"));
+    }
+    // ---- 放入上下文，交给 TemplateRenderingInterceptor 渲染 ------------
+    ctx.put("viewData", data);
+    LOG.info("handleCollectionPage data prepared, keys={}", data.keySet());
   }
 
   /**
    * 创建记录页面
    */
-  @GetMapping("/page/data/collection/:name/create")
+  @GetMapping("/data/collection/:name/create")
+  @RenderTemplate("create")
   public void handleCreatePage(RoutingContext ctx) {
     String collectionName = ctx.pathParam("name");
 
@@ -190,81 +149,43 @@ public class DataPlugin {
     data.put("submitUrl", "/api/data/" + collectionName);
     data.put("method", "POST");
 
-    try {
-      // 设置模板数据供主题系统使用
-      ctx.put("templateData", data);
-      ctx.put("_layout", "base");
+    ctx.put("viewData", data);
+    LOG.info("Data set in context, viewData keys: {}", data.keySet());
 
-      String html = renderTemplate("create.mustache", data);
-      ctx.put("_rendered_content", html);
-
-      // 设置响应头但不结束响应，让拦截器处理
-      ctx.response()
-          .putHeader("content-type", "text/html; charset=utf-8");
-
-      // 如果没有主题处理器，直接发送响应
-      if (ctx.get("_theme_processor_available") == null) {
-        ctx.response().end(html);
-      }
-    } catch (Exception e) {
-      LOG.error("Error rendering create page", e);
-      ctx.response().setStatusCode(500).end("Internal Server Error");
-    }
   }
 
   /**
    * 编辑记录页面
    */
-  @GetMapping("/page/data/collection/:name/edit/:id")
+  @GetMapping("/data/collection/:name/edit/:id")
+  @RenderTemplate("edit")
   public void handleEditPage(RoutingContext ctx) {
     String collectionName = ctx.pathParam("name");
     String id = ctx.pathParam("id");
+    Optional<Map<String, Object>> record = dataService.findById(collectionName, id);
 
-    vertx.executeBlocking(promise -> {
-      try {
-        Optional<Map<String, Object>> record = dataService.findById(collectionName, id);
+    if (record.isEmpty()) {
+      ctx.fail(404, new RuntimeException("Record not found"));
+      return;
+    }
 
-        if (record.isEmpty()) {
-          promise.fail(new RuntimeException("Record not found"));
-          return;
-        }
+    Map<String, Object> data = new HashMap<>();
+    data.put("title", "编辑记录 - " + collectionName);
+    data.put("collection", collectionName);
+    data.put("id", id);
+    data.put("collectionName", collectionName);
+    data.put("action", "edit");
+    data.put("submitUrl", "/api/data/" + collectionName + "/" + id);
+    data.put("method", "PUT");
+    data.put("record", record.get());
+    try {
+      String recordJson = objectMapper.writeValueAsString(record.get());
+      data.put("recordJson", recordJson);
+    } catch (JsonProcessingException e) {
+      LOG.error("Error converting record to JSON", e);
+    }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("title", "编辑记录 - " + collectionName);
-        data.put("collectionName", collectionName);
-        data.put("action", "edit");
-        data.put("submitUrl", "/api/data/" + collectionName + "/" + id);
-        data.put("method", "PUT");
-        data.put("record", record.get());
-        data.put("recordJson", objectMapper.writeValueAsString(record.get()));
-
-        // 设置模板数据供主题系统使用
-        ctx.put("templateData", data);
-        ctx.put("_layout", "base");
-
-        String html = renderTemplate("edit.mustache", data);
-        promise.complete(html);
-      } catch (Exception e) {
-        promise.fail(e);
-      }
-    }, res -> {
-      if (res.succeeded()) {
-        String html = (String) res.result();
-        ctx.put("_rendered_content", html);
-
-        // 设置响应头但不结束响应，让拦截器处理
-        ctx.response()
-            .putHeader("content-type", "text/html; charset=utf-8");
-
-        // 如果没有主题处理器，直接发送响应
-        if (ctx.get("_theme_processor_available") == null) {
-          ctx.response().end(html);
-        }
-      } else {
-        LOG.error("Error rendering edit page", res.cause());
-        ctx.response().setStatusCode(404).end("Record not found");
-      }
-    });
+    ctx.put("viewData", data);
   }
 
   // API 路由

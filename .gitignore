@@ -129,3 +129,7 @@ test-results/
 # Cache directories
 .cache/
 .m2/repository/ 
+
+
+# Ignore themes folder
+themes/
