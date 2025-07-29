@@ -20,7 +20,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * 主题管理器
@@ -65,6 +64,22 @@ public class ThemeManager implements TemplateProcessor, InitializingBean {
 
   private void initialize() {
     try {
+      LOG.info("Initializing ThemeManager...");
+      LOG.info("Theme directory: {}", themeDirectory);
+      LOG.info("Active theme: {}", activeTheme);
+      LOG.info("Fallback theme: {}", fallbackTheme);
+
+      // 确保 activeTheme 不为空
+      if (activeTheme == null || activeTheme.trim().isEmpty()) {
+        LOG.warn("Active theme is null or empty, using default");
+        activeTheme = "default";
+      }
+
+      if (fallbackTheme == null || fallbackTheme.trim().isEmpty()) {
+        LOG.warn("Fallback theme is null or empty, using default");
+        fallbackTheme = "default";
+      }
+
       // 确定主题目录
       this.themeRootDir = resolveThemeDirectory();
 
@@ -82,7 +97,16 @@ public class ThemeManager implements TemplateProcessor, InitializingBean {
       if (!themes.containsKey(activeTheme)) {
         LOG.warn("Active theme '{}' not found, falling back to '{}'", activeTheme, fallbackTheme);
         activeTheme = fallbackTheme;
+
+        // 如果回退主题也不存在，使用第一个可用主题
+        if (!themes.containsKey(activeTheme) && !themes.isEmpty()) {
+          String firstTheme = themes.keySet().iterator().next();
+          LOG.warn("Fallback theme '{}' not found, using first available theme: '{}'", fallbackTheme, firstTheme);
+          activeTheme = firstTheme;
+        }
       }
+
+      LOG.info("Active theme set to: {}", activeTheme);
 
       // 开发模式下监控文件变化
       if (watchEnabled) {
@@ -339,15 +363,67 @@ public class ThemeManager implements TemplateProcessor, InitializingBean {
   private Map<String, Object> prepareThemeData(RoutingContext ctx) {
     Map<String, Object> data = new HashMap<>();
 
+    // 确保 activeTheme 不为空
+    String currentTheme = activeTheme;
+    if (currentTheme == null || currentTheme.trim().isEmpty()) {
+      currentTheme = "default";
+      LOG.warn("activeTheme is null/empty in prepareThemeData, using default");
+    }
+
     // 添加系统信息
     data.put("systemName", "Direct-LLM-Rask");
-    data.put("theme", activeTheme);
-    data.put("themeUrl", "/theme/" + activeTheme);
+    data.put("theme", currentTheme);
+    data.put("themeUrl", "/theme/" + currentTheme);
 
-    // 添加用户信息
-    data.put("currentUser", ctx.get("currentUser"));
-    data.put("userId", ctx.get("userId"));
-    data.put("userRole", ctx.get("userRole"));
+    // 添加用户信息 - 统一处理
+    String userId = ctx.get("userId");
+    String userEmail = ctx.get("userEmail");
+    String userRole = ctx.get("userRole");
+    Map<String, Object> currentUserMap = ctx.get("currentUser");
+    // LOG.info("currentUserMap: {}", currentUserMap);
+
+    boolean isAuthenticated = userId != null;
+    data.put("isAuthenticated", isAuthenticated);
+
+    if (isAuthenticated) {
+      // 构建完整的用户信息
+      Map<String, Object> userInfo = new HashMap<>();
+      if (currentUserMap != null) {
+        userInfo.putAll(currentUserMap);
+      }
+
+      // 确保基本信息存在
+      userInfo.put("id", userId);
+      userInfo.put("email", userEmail);
+      userInfo.put("role", userRole);
+
+      // 如果没有名称，使用邮箱前缀
+      if (!userInfo.containsKey("name") || userInfo.get("name") == null) {
+        String displayName = userEmail != null && userEmail.contains("@")
+            ? userEmail.substring(0, userEmail.indexOf("@"))
+            : "用户";
+        userInfo.put("name", displayName);
+      }
+
+      data.put("currentUser", userInfo);
+      data.put("userId", userId);
+      data.put("userEmail", userEmail);
+      data.put("userRole", userRole);
+
+      // 添加角色判断
+      data.put("isAdmin", "admin".equals(userRole));
+      data.put("isManager", "manager".equals(userRole) || "admin".equals(userRole));
+
+      LOG.debug("User authenticated - ID: {}, Email: {}, Role: {}", userId, userEmail, userRole);
+    } else {
+      data.put("currentUser", null);
+      data.put("userId", null);
+      data.put("userEmail", null);
+      data.put("userRole", null);
+      data.put("isAdmin", false);
+      data.put("isManager", false);
+      LOG.debug("User not authenticated");
+    }
 
     // 添加导航信息
     data.put("currentPath", ctx.request().path());
@@ -360,6 +436,12 @@ public class ThemeManager implements TemplateProcessor, InitializingBean {
     Object templateData = ctx.get("templateData");
     if (templateData instanceof Map) {
       data.putAll((Map<String, Object>) templateData);
+    }
+
+    // 合并视图数据
+    Map<String, Object> viewData = ctx.get("viewData");
+    if (viewData != null) {
+      data.putAll(viewData);
     }
 
     return data;
@@ -548,9 +630,9 @@ public class ThemeManager implements TemplateProcessor, InitializingBean {
   /**
    * 使用指定主题渲染内容
    */
-  public String renderWithTheme(String themeName, String layoutName, Map<String, Object> data) {
+  public String renderWithTheme(String themeName, String layoutName, Map<String, Object> data, RoutingContext ctx) {
     LOG.debug("renderWithTheme called - theme: {}, layout: {}", themeName, layoutName);
-
+    data.putAll(prepareThemeData(ctx));
     Theme theme = themes.get(themeName);
     if (theme == null) {
       LOG.warn("Theme not found: {}, using default", themeName);

@@ -280,7 +280,7 @@ public class RouteMappingBeanPostProcessor implements BeanPostProcessor, Applica
           throw new IllegalArgumentException("Unsupported method parameters: " + method);
         }
 
-        LOG.info("Method execution completed for {}.{}, response ended: {}, headers written: {}",
+        LOG.debug("Method execution completed for {}.{}, response ended: {}, headers written: {}",
             controller.getClass().getSimpleName(), method.getName(),
             ctx.response().ended(), ctx.response().headWritten());
 

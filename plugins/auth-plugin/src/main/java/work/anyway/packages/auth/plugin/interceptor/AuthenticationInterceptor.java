@@ -9,8 +9,6 @@ import work.anyway.annotations.InterceptorComponent;
 import work.anyway.interfaces.auth.PermissionService;
 import work.anyway.packages.auth.plugin.utils.TokenValidator;
 
-import java.util.Set;
-
 /**
  * 认证拦截器
  * 验证用户身份和权限，支持基于角色和资源的访问控制

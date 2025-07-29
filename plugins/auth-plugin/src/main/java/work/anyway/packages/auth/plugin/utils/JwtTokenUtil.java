@@ -14,7 +14,9 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
+import work.anyway.interfaces.user.User;
 
 /**
  * JWT Token 工具类
@@ -31,9 +33,16 @@ public class JwtTokenUtil {
 
   // Claims 键名
   private static final String CLAIM_USER_ID = "userId";
+  private static final String CLAIM_USER_NAME = "userName";
   private static final String CLAIM_EMAIL = "email";
   private static final String CLAIM_ROLE = "role";
   private static final String CLAIM_TOKEN_TYPE = "type";
+  // 扩展的用户属性
+  private static final String CLAIM_PHONE = "phone";
+  private static final String CLAIM_DEPARTMENT = "department";
+  private static final String CLAIM_STATUS = "status";
+  private static final String CLAIM_AVATAR_URL = "avatarUrl";
+  private static final String CLAIM_LAST_LOGIN = "lastLogin";
 
   // Token 类型
   private static final String ACCESS_TOKEN_TYPE = "access";
@@ -66,62 +75,172 @@ public class JwtTokenUtil {
   }
 
   /**
-   * 生成访问 token
+   * 生成访问 token（完整用户信息）
    * 
-   * @param userId 用户ID
-   * @param email  用户邮箱
-   * @param role   用户角色
+   * @param user  用户对象
+   * @param email 用户邮箱
    * @return JWT access token
    */
-  public String generateAccessToken(String userId, String email, String role) {
-    return generateToken(userId, email, role, ACCESS_TOKEN_TYPE, accessTokenExpirySeconds);
+  public String generateAccessToken(User user, String email) {
+    return generateToken(user, email, ACCESS_TOKEN_TYPE, accessTokenExpirySeconds);
   }
 
   /**
-   * 生成刷新 token
+   * 生成刷新 token（完整用户信息）
    * 
-   * @param userId 用户ID
-   * @param email  用户邮箱
-   * @param role   用户角色
+   * @param user  用户对象
+   * @param email 用户邮箱
    * @return JWT refresh token
    */
-  public String generateRefreshToken(String userId, String email, String role) {
-    return generateToken(userId, email, role, REFRESH_TOKEN_TYPE, refreshTokenExpirySeconds);
+  public String generateRefreshToken(User user, String email) {
+    return generateToken(user, email, REFRESH_TOKEN_TYPE, refreshTokenExpirySeconds);
   }
 
   /**
-   * 生成 JWT token
+   * 生成访问 token（基础信息 - 向后兼容）
    * 
-   * @param userId        用户ID
+   * @param userId   用户ID
+   * @param userName 用户姓名
+   * @param email    用户邮箱
+   * @param role     用户角色
+   * @return JWT access token
+   */
+  public String generateAccessToken(String userId, String userName, String email, String role) {
+    return generateToken(userId, userName, email, role, null, null, null, null, null, ACCESS_TOKEN_TYPE,
+        accessTokenExpirySeconds);
+  }
+
+  /**
+   * 生成刷新 token（基础信息 - 向后兼容）
+   * 
+   * @param userId   用户ID
+   * @param userName 用户姓名
+   * @param email    用户邮箱
+   * @param role     用户角色
+   * @return JWT refresh token
+   */
+  public String generateRefreshToken(String userId, String userName, String email, String role) {
+    return generateToken(userId, userName, email, role, null, null, null, null, null, REFRESH_TOKEN_TYPE,
+        refreshTokenExpirySeconds);
+  }
+
+  /**
+   * 生成 JWT token（完整用户信息）
+   * 
+   * @param user          用户对象
    * @param email         用户邮箱
-   * @param role          用户角色
    * @param tokenType     token类型
    * @param expirySeconds 过期时间（秒）
    * @return JWT token
    */
-  private String generateToken(String userId, String email, String role, String tokenType, long expirySeconds) {
+  private String generateToken(User user, String email, String tokenType, long expirySeconds) {
     try {
       initializeJwt();
 
       Instant now = Instant.now();
       Instant expiry = now.plus(expirySeconds, ChronoUnit.SECONDS);
 
-      String token = JWT.create()
+      // 构建JWT Builder
+      var jwtBuilder = JWT.create()
+          .withIssuer(ISSUER)
+          .withSubject(user.getId())
+          .withClaim(CLAIM_USER_ID, user.getId())
+          .withClaim(CLAIM_USER_NAME, user.getName())
+          .withClaim(CLAIM_EMAIL, email)
+          .withClaim(CLAIM_ROLE, user.getRole())
+          .withClaim(CLAIM_TOKEN_TYPE, tokenType)
+          .withIssuedAt(Date.from(now))
+          .withExpiresAt(Date.from(expiry));
+
+      // 添加扩展的用户属性（如果存在）
+      if (user.getPhone() != null) {
+        jwtBuilder.withClaim(CLAIM_PHONE, user.getPhone());
+      }
+      if (user.getDepartment() != null) {
+        jwtBuilder.withClaim(CLAIM_DEPARTMENT, user.getDepartment());
+      }
+      if (user.getStatus() != null) {
+        jwtBuilder.withClaim(CLAIM_STATUS, user.getStatus());
+      }
+      if (user.getAvatarUrl() != null) {
+        jwtBuilder.withClaim(CLAIM_AVATAR_URL, user.getAvatarUrl());
+      }
+      if (user.getLastLogin() != null) {
+        jwtBuilder.withClaim(CLAIM_LAST_LOGIN, user.getLastLogin().getTime());
+      }
+
+      String token = jwtBuilder.sign(algorithm);
+
+      LOG.debug("Generated {} token for user: {} ({})", tokenType, user.getName(), user.getId());
+      return token;
+
+    } catch (JWTCreationException e) {
+      LOG.error("Failed to generate {} token for user: {} ({})", tokenType, user.getName(), user.getId(), e);
+      throw new RuntimeException("Token generation failed", e);
+    }
+  }
+
+  /**
+   * 生成 JWT token（基础信息 - 向后兼容）
+   * 
+   * @param userId        用户ID
+   * @param userName      用户姓名
+   * @param email         用户邮箱
+   * @param role          用户角色
+   * @param phone         电话号码
+   * @param department    部门
+   * @param status        状态
+   * @param avatarUrl     头像URL
+   * @param lastLogin     最后登录时间
+   * @param tokenType     token类型
+   * @param expirySeconds 过期时间（秒）
+   * @return JWT token
+   */
+  private String generateToken(String userId, String userName, String email, String role,
+      String phone, String department, String status, String avatarUrl, Date lastLogin,
+      String tokenType, long expirySeconds) {
+    try {
+      initializeJwt();
+
+      Instant now = Instant.now();
+      Instant expiry = now.plus(expirySeconds, ChronoUnit.SECONDS);
+
+      // 构建JWT Builder
+      var jwtBuilder = JWT.create()
           .withIssuer(ISSUER)
           .withSubject(userId)
           .withClaim(CLAIM_USER_ID, userId)
+          .withClaim(CLAIM_USER_NAME, userName)
           .withClaim(CLAIM_EMAIL, email)
           .withClaim(CLAIM_ROLE, role)
           .withClaim(CLAIM_TOKEN_TYPE, tokenType)
           .withIssuedAt(Date.from(now))
-          .withExpiresAt(Date.from(expiry))
-          .sign(algorithm);
+          .withExpiresAt(Date.from(expiry));
 
-      LOG.debug("Generated {} token for user: {}", tokenType, userId);
+      // 添加可选的扩展属性
+      if (phone != null) {
+        jwtBuilder.withClaim(CLAIM_PHONE, phone);
+      }
+      if (department != null) {
+        jwtBuilder.withClaim(CLAIM_DEPARTMENT, department);
+      }
+      if (status != null) {
+        jwtBuilder.withClaim(CLAIM_STATUS, status);
+      }
+      if (avatarUrl != null) {
+        jwtBuilder.withClaim(CLAIM_AVATAR_URL, avatarUrl);
+      }
+      if (lastLogin != null) {
+        jwtBuilder.withClaim(CLAIM_LAST_LOGIN, lastLogin.getTime());
+      }
+
+      String token = jwtBuilder.sign(algorithm);
+
+      LOG.debug("Generated {} token for user: {} ({})", tokenType, userName, userId);
       return token;
 
     } catch (JWTCreationException e) {
-      LOG.error("Failed to generate {} token for user: {}", tokenType, userId, e);
+      LOG.error("Failed to generate {} token for user: {} ({})", tokenType, userName, userId, e);
       throw new RuntimeException("Token generation failed", e);
     }
   }
@@ -154,13 +273,32 @@ public class JwtTokenUtil {
       initializeJwt();
       DecodedJWT jwt = verifier.verify(token);
 
-      return new TokenInfo(
-          jwt.getClaim(CLAIM_USER_ID).asString(),
-          jwt.getClaim(CLAIM_EMAIL).asString(),
-          jwt.getClaim(CLAIM_ROLE).asString(),
-          jwt.getClaim(CLAIM_TOKEN_TYPE).asString(),
-          jwt.getIssuedAt().toInstant(),
-          jwt.getExpiresAt().toInstant());
+      // 安全地获取基础claims，避免null值
+      String userId = jwt.getClaim(CLAIM_USER_ID).asString();
+      String userName = jwt.getClaim(CLAIM_USER_NAME).asString();
+      String email = jwt.getClaim(CLAIM_EMAIL).asString();
+      String role = jwt.getClaim(CLAIM_ROLE).asString();
+      String tokenType = jwt.getClaim(CLAIM_TOKEN_TYPE).asString();
+
+      // 获取扩展的用户属性
+      String phone = jwt.getClaim(CLAIM_PHONE).asString();
+      String department = jwt.getClaim(CLAIM_DEPARTMENT).asString();
+      String status = jwt.getClaim(CLAIM_STATUS).asString();
+      String avatarUrl = jwt.getClaim(CLAIM_AVATAR_URL).asString();
+
+      // 处理时间戳
+      Instant issuedAt = jwt.getIssuedAt() != null ? jwt.getIssuedAt().toInstant() : null;
+      Instant expiresAt = jwt.getExpiresAt() != null ? jwt.getExpiresAt().toInstant() : null;
+
+      // 处理最后登录时间
+      Date lastLogin = null;
+      Long lastLoginTimestamp = jwt.getClaim(CLAIM_LAST_LOGIN).asLong();
+      if (lastLoginTimestamp != null) {
+        lastLogin = new Date(lastLoginTimestamp);
+      }
+
+      return new TokenInfo(userId, userName, email, role, phone, department, status,
+          avatarUrl, lastLogin, tokenType, issuedAt, expiresAt);
 
     } catch (JWTVerificationException e) {
       LOG.debug("Failed to parse token: {}", e.getMessage());
@@ -211,17 +349,30 @@ public class JwtTokenUtil {
    */
   public static class TokenInfo {
     private final String userId;
+    private final String userName;
     private final String email;
     private final String role;
+    private final String phone;
+    private final String department;
+    private final String status;
+    private final String avatarUrl;
+    private final Date lastLogin;
     private final String tokenType;
     private final Instant issuedAt;
     private final Instant expiresAt;
 
-    public TokenInfo(String userId, String email, String role, String tokenType,
-        Instant issuedAt, Instant expiresAt) {
+    public TokenInfo(String userId, String userName, String email, String role,
+        String phone, String department, String status, String avatarUrl, Date lastLogin,
+        String tokenType, Instant issuedAt, Instant expiresAt) {
       this.userId = userId;
+      this.userName = userName;
       this.email = email;
       this.role = role;
+      this.phone = phone;
+      this.department = department;
+      this.status = status;
+      this.avatarUrl = avatarUrl;
+      this.lastLogin = lastLogin;
       this.tokenType = tokenType;
       this.issuedAt = issuedAt;
       this.expiresAt = expiresAt;
@@ -231,12 +382,36 @@ public class JwtTokenUtil {
       return userId;
     }
 
+    public String getUserName() {
+      return userName;
+    }
+
     public String getEmail() {
       return email;
     }
 
     public String getRole() {
       return role;
+    }
+
+    public String getPhone() {
+      return phone;
+    }
+
+    public String getDepartment() {
+      return department;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public String getAvatarUrl() {
+      return avatarUrl;
+    }
+
+    public Date getLastLogin() {
+      return lastLogin;
     }
 
     public String getTokenType() {
@@ -252,17 +427,24 @@ public class JwtTokenUtil {
     }
 
     public boolean isExpired() {
-      return Instant.now().isAfter(expiresAt);
+      return expiresAt != null && Instant.now().isAfter(expiresAt);
     }
 
     public Map<String, Object> toMap() {
-      return Map.of(
-          "userId", userId,
-          "email", email,
-          "role", role,
-          "tokenType", tokenType,
-          "issuedAt", issuedAt.toString(),
-          "expiresAt", expiresAt.toString());
+      Map<String, Object> map = new HashMap<>();
+      map.put("userId", userId != null ? userId : "");
+      map.put("userName", userName != null ? userName : "");
+      map.put("email", email != null ? email : "");
+      map.put("role", role != null ? role : "");
+      map.put("phone", phone != null ? phone : "");
+      map.put("department", department != null ? department : "");
+      map.put("status", status != null ? status : "");
+      map.put("avatarUrl", avatarUrl != null ? avatarUrl : "");
+      map.put("lastLogin", lastLogin != null ? lastLogin.toString() : "");
+      map.put("tokenType", tokenType != null ? tokenType : "");
+      map.put("issuedAt", issuedAt != null ? issuedAt.toString() : "");
+      map.put("expiresAt", expiresAt != null ? expiresAt.toString() : "");
+      return map;
     }
   }
 }

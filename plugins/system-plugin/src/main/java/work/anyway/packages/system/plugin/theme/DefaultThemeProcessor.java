@@ -61,6 +61,13 @@ public class DefaultThemeProcessor implements TemplateProcessor {
    * 判断是否需要处理
    */
   private boolean shouldProcess(RoutingContext ctx) {
+    // 检查是否有用户登录（只有登录用户才需要菜单）
+    String userId = ctx.get("userId");
+    if (userId == null) {
+      LOG.debug("No authenticated user, skipping menu processing");
+      // return false;
+    }
+
     // 检查是否有渲染内容标记
     String renderedContent = ctx.get("_rendered_content");
     if (renderedContent != null) {
@@ -101,33 +108,24 @@ public class DefaultThemeProcessor implements TemplateProcessor {
    * 注入全局数据
    */
   private void injectGlobalData(Map<String, Object> data, RoutingContext ctx) {
-    // 系统信息
-    data.put("systemName", "Direct-LLM-Rask");
-    data.put("theme", "default");
-
-    // 用户信息
+    // 只处理菜单相关的数据，其他交给 ThemeManager
     String userId = ctx.get("userId");
     if (userId != null) {
-      data.put("currentUser", Map.of(
-          "id", userId,
-          "name", ctx.get("userName") != null ? ctx.get("userName") : "用户"));
-
       // 获取用户菜单
       try {
         List<MenuItemInfo> menuTree = menuService.getUserMenuTree(userId);
         data.put("menus", convertMenuTree(menuTree, ctx.request().path()));
+        LOG.debug("Loaded {} menu items for user: {}", menuTree.size(), userId);
       } catch (Exception e) {
-        LOG.error("Failed to load user menu", e);
+        LOG.error("Failed to load user menu for user: {}", userId, e);
         data.put("menus", Collections.emptyList());
       }
     } else {
       data.put("menus", Collections.emptyList());
+      LOG.debug("No user authenticated, empty menu");
     }
 
-    // 当前路径
-    data.put("currentPath", ctx.request().path());
-
-    // 面包屑
+    // 面包屑 - 使用更详细的面包屑逻辑
     data.put("breadcrumb", generateBreadcrumb(ctx));
   }
 
@@ -239,7 +237,7 @@ public class DefaultThemeProcessor implements TemplateProcessor {
     data.put("content", content);
 
     // 使用主题管理器渲染
-    String result = themeManager.renderWithTheme("default", layoutName, data);
+    String result = themeManager.renderWithTheme("default", layoutName, data, ctx);
     LOG.debug("Content length after theme: {}", result.length());
 
     return result;

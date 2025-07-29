@@ -1,11 +1,8 @@
 package work.anyway.packages.auth.plugin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.mustachejava.DefaultMustacheFactory;
-import com.github.mustachejava.Mustache;
-import com.github.mustachejava.MustacheFactory;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.http.Cookie;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +13,6 @@ import work.anyway.interfaces.auth.SecurityService;
 import work.anyway.interfaces.auth.LoginSecurityService;
 import work.anyway.interfaces.auth.LoginLogService;
 import work.anyway.interfaces.auth.LoginAttemptResult;
-import work.anyway.interfaces.auth.LoginAttempt;
 import work.anyway.interfaces.auth.LoginLog;
 import work.anyway.interfaces.cache.CacheService;
 import work.anyway.interfaces.user.User;
@@ -27,9 +23,6 @@ import work.anyway.interfaces.user.UserAccount;
 import work.anyway.packages.auth.plugin.utils.JwtTokenUtil;
 import work.anyway.interfaces.auth.Permission;
 
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -43,7 +36,7 @@ import java.util.*;
  * @author 作者名
  * @since 1.0.0
  */
-@Plugin(name = "Auth Plugin", version = "1.0.0", description = "管理用户认证和权限，提供完整的身份验证和访问控制功能", icon = "🔐", mainPagePath = "/auth/")
+@Plugin(name = "Auth Plugin", version = "1.0.0", description = "管理用户认证和权限，提供完整的身份验证和访问控制功能", icon = "🔐", mainPagePath = "/")
 // 声明权限定义
 @PermissionDef(code = "auth.manage", name = "认证管理", description = "管理用户认证和登录设置", defaultRoles = { "admin" })
 @PermissionDef(code = "permission.view", name = "查看权限", description = "查看权限列表和分配情况", defaultRoles = { "admin",
@@ -55,7 +48,7 @@ import java.util.*;
 // 声明一级菜单
 @MenuItem(id = "auth", title = "认证与权限", icon = "🔐", order = 30)
 @Controller
-@RequestMapping("/auth")
+@RequestMapping("/")
 @Intercepted({ "SystemRequestLog" }) // 插件级别的基础日志记录
 public class AuthPlugin {
 
@@ -85,16 +78,13 @@ public class AuthPlugin {
   @Autowired(required = false)
   private LoginLogService loginLogService;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
-  private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
-
   // 认证 API 端点
 
   /**
    * 用户注册
    */
-  @PostMapping("/register")
-  public void registerUser(RoutingContext ctx) {
+  @PostMapping("/sign-up")
+  public void signUp(RoutingContext ctx) {
     JsonObject body = ctx.getBodyAsJson();
     LOG.debug("User registration attempt");
 
@@ -191,16 +181,9 @@ public class AuthPlugin {
 
       UserAccount createdAccount = accountService.createAccount(emailAccount);
 
-      // 生成访问令牌
-      String accessToken = jwtTokenUtil.generateAccessToken(
-          userId,
-          email,
-          createdUser.getRole());
-
-      String refreshToken = jwtTokenUtil.generateRefreshToken(
-          userId,
-          email,
-          createdUser.getRole());
+      // 生成访问令牌（包含完整用户信息）
+      String accessToken = jwtTokenUtil.generateAccessToken(createdUser, email);
+      String refreshToken = jwtTokenUtil.generateRefreshToken(createdUser, email);
 
       // 将刷新令牌存储到缓存
       cacheService.put("refresh_token:" + userId, refreshToken, 604800); // 7天
@@ -251,29 +234,43 @@ public class AuthPlugin {
   }
 
   /**
-   * 用户登录
+   * 用户登录 - 支持表单提交和 JSON API
    */
-  @PostMapping("/login")
-  public void loginUser(RoutingContext ctx) {
-    JsonObject body = ctx.getBodyAsJson();
-    LOG.debug("User login attempt");
+  @PostMapping("/sign-in")
+  public void signIn(RoutingContext ctx) {
 
-    if (body == null || body.isEmpty()) {
-      sendError(ctx, 400, "Request body is required");
-      return;
-    }
+    // 判断是表单提交还是 JSON API 请求
+    String contentType = ctx.request().getHeader("Content-Type");
+    boolean isFormSubmission = contentType != null && contentType.contains("application/x-www-form-urlencoded");
+
+    String email = null;
+    String password = null;
+    String redirectUrl = null;
 
     try {
-      String email = body.getString("identifier");
-      String password = body.getString("password");
+      if (isFormSubmission) {
+        // 处理表单提交
+        email = ctx.request().getFormAttribute("identifier");
+        password = ctx.request().getFormAttribute("password");
+        redirectUrl = ctx.request().getFormAttribute("redirect");
+      } else {
+        // 处理 JSON API 请求
+        JsonObject body = ctx.getBodyAsJson();
+        if (body == null || body.isEmpty()) {
+          sendError(ctx, 400, "Request body is required");
+          return;
+        }
+        email = body.getString("identifier");
+        password = body.getString("password");
+      }
 
       if (securityService.isBlank(email)) {
-        sendError(ctx, 400, "Email is required");
+        handleLoginError(ctx, isFormSubmission, "Email is required", email, redirectUrl);
         return;
       }
 
       if (securityService.isBlank(password)) {
-        sendError(ctx, 400, "Password is required");
+        handleLoginError(ctx, isFormSubmission, "Password is required", email, redirectUrl);
         return;
       }
 
@@ -282,13 +279,11 @@ public class AuthPlugin {
       String clientIp = ctx.request().remoteAddress().host();
 
       LOG.info("=== Starting email login authentication for {} ===", email);
-      LOG.info("LoginSecurityService status: {}", loginSecurityService != null ? "Available" : "Not available");
-      LOG.info("LoginLogService status: {}", loginLogService != null ? "Available" : "Not available");
 
-      // Step 1: 安全检查 - 使用新的 LoginSecurityService
+      // Step 1: 安全检查
       if (loginSecurityService != null) {
         LoginAttemptResult securityCheck = loginSecurityService.checkLoginAttempt(email, clientIp);
-        LOG.info("Step 2: Security check result: {}", securityCheck);
+        LOG.info("Security check result: {}", securityCheck);
 
         if (!securityCheck.isAllowed()) {
           // 记录被阻止的登录尝试
@@ -296,30 +291,26 @@ public class AuthPlugin {
             recordBlockedLoginAttempt(email, clientIp, securityCheck.getReason());
           }
 
-          JsonObject errorResponse = new JsonObject()
-              .put("success", false)
-              .put("error", securityCheck.getReason())
-              .put("remainingAttempts", securityCheck.getRemainingAttempts())
-              .put("waitSeconds", securityCheck.getWaitSeconds());
+          if (isFormSubmission) {
+            // 表单提交，重新渲染登录页面并显示错误
+            handleLoginError(ctx, true, securityCheck.getReason(), email, redirectUrl);
+          } else {
+            // JSON API 请求
+            JsonObject errorResponse = new JsonObject()
+                .put("success", false)
+                .put("error", securityCheck.getReason())
+                .put("remainingAttempts", securityCheck.getRemainingAttempts())
+                .put("waitSeconds", securityCheck.getWaitSeconds());
 
-          if (securityCheck.getLockUntil() != null) {
-            errorResponse.put("lockUntil", securityCheck.getLockUntil().toString());
+            if (securityCheck.getLockUntil() != null) {
+              errorResponse.put("lockUntil", securityCheck.getLockUntil().toString());
+            }
+
+            ctx.response()
+                .setStatusCode(429)
+                .putHeader("content-type", "application/json")
+                .end(errorResponse.encode());
           }
-
-          ctx.response()
-              .setStatusCode(429)
-              .putHeader("content-type", "application/json")
-              .end(errorResponse.encode());
-          return;
-        }
-      } else {
-        // Fallback to old cache-based logic if LoginSecurityService is not available
-        String loginAttemptsKey = "login_attempts:" + email;
-        Object attemptsObj = cacheService.get(loginAttemptsKey);
-        long attempts = (attemptsObj instanceof Long) ? (Long) attemptsObj : 0;
-
-        if (attempts >= 5) {
-          sendError(ctx, 429, "Too many login attempts. Please try again later");
           return;
         }
       }
@@ -328,7 +319,7 @@ public class AuthPlugin {
       Optional<User> userOpt = userService.findUserByEmail(email);
       if (userOpt.isEmpty()) {
         recordFailedLoginAttempt(email, clientIp, "User not found");
-        sendError(ctx, 401, "Invalid email or password");
+        handleLoginError(ctx, isFormSubmission, "Invalid email or password", email, redirectUrl);
         return;
       }
 
@@ -338,7 +329,7 @@ public class AuthPlugin {
       Optional<UserAccount> emailAccountOpt = accountService.findAccount(email, AccountType.EMAIL);
       if (emailAccountOpt.isEmpty()) {
         recordFailedLoginAttempt(email, clientIp, "Email account not found");
-        sendError(ctx, 401, "Invalid email or password");
+        handleLoginError(ctx, isFormSubmission, "Invalid email or password", email, redirectUrl);
         return;
       }
 
@@ -348,14 +339,14 @@ public class AuthPlugin {
       if (!securityService.verifyPassword(password, storedPassword)) {
         recordFailedLoginAttempt(email, clientIp, "Invalid password");
         LOG.warn("Login failed for email: {}", email);
-        sendError(ctx, 401, "Invalid email or password");
+        handleLoginError(ctx, isFormSubmission, "Invalid email or password", email, redirectUrl);
         return;
       }
 
       // 检查用户状态
       if (!user.isActive()) {
         recordFailedLoginAttempt(email, clientIp, "Account not active");
-        sendError(ctx, 403, "Account is not active");
+        handleLoginError(ctx, isFormSubmission, "Account is not active", email, redirectUrl);
         return;
       }
 
@@ -368,57 +359,104 @@ public class AuthPlugin {
         recordSuccessfulLoginAttempt(email, clientIp, "Email login successful");
       }
 
-      // 重置失败计数（使用新服务或旧缓存）
+      // 重置失败计数
       if (loginSecurityService != null) {
         loginSecurityService.clearFailedAttempts(email, clientIp);
-      } else {
-        String loginAttemptsKey = "login_attempts:" + email;
-        cacheService.remove(loginAttemptsKey);
       }
 
-      // 生成新的访问令牌
-      String accessToken = jwtTokenUtil.generateAccessToken(userId, email, userRole);
-      String refreshToken = jwtTokenUtil.generateRefreshToken(userId, email, userRole);
+      // 生成新的访问令牌（包含完整用户信息）
+      String accessToken = jwtTokenUtil.generateAccessToken(user, email);
+      String refreshToken = jwtTokenUtil.generateRefreshToken(user, email);
 
       // 存储刷新令牌
       cacheService.put("refresh_token:" + userId, refreshToken, 604800); // 7天
 
       // 记录登录信息
-      cacheService.put("last_login:" + userId, System.currentTimeMillis(), 86400); // 24小时
+      cacheService.put("last_login:" + userId, System.currentTimeMillis(), 86400);
       cacheService.put("login_ip:" + userId, clientIp, 86400);
 
       LOG.info("User logged in successfully: {} (ID: {})", email, userId);
 
-      // 返回用户信息（不包含敏感数据）
-      Map<String, Object> userInfo = new HashMap<>();
-      userInfo.put("id", user.getId());
-      userInfo.put("name", user.getName());
-      userInfo.put("email", email);
-      userInfo.put("phone", user.getPhone());
-      userInfo.put("department", user.getDepartment());
-      userInfo.put("role", user.getRole());
-      userInfo.put("status", user.getStatus());
-      userInfo.put("lastLogin", user.getLastLogin());
-      // 不包含密码等敏感信息
+      if (isFormSubmission) {
+        // 表单提交，设置 Cookie 并重定向
+        ctx.addCookie(Cookie.cookie("auth_token", accessToken)
+            .setHttpOnly(true)
+            .setSecure(false) // 开发环境，生产环境应设为 true
+            .setMaxAge(3600) // 1小时
+            .setPath("/"));
 
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("message", "Login successful")
-          .put("data", new JsonObject()
-              .put("user", userInfo)
-              .put("accessToken", accessToken)
-              .put("refreshToken", refreshToken)
-              .put("tokenType", "Bearer")
-              .put("expiresIn", 3600) // 1小时
-          );
+        // 重定向到目标页面或首页
+        String targetUrl = "/"; // 默认首页
+        if (redirectUrl != null && !redirectUrl.isEmpty()) {
+          targetUrl = redirectUrl;
+        }
 
-      ctx.response()
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
+        ctx.response()
+            .setStatusCode(302)
+            .putHeader("Location", targetUrl)
+            .end();
+      } else {
+        // JSON API 请求
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("name", user.getName());
+        userInfo.put("email", email);
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("department", user.getDepartment());
+        userInfo.put("role", user.getRole());
+        userInfo.put("status", user.getStatus());
+        userInfo.put("lastLogin", user.getLastLogin());
+
+        JsonObject response = new JsonObject()
+            .put("success", true)
+            .put("message", "Login successful")
+            .put("data", new JsonObject()
+                .put("user", userInfo)
+                .put("accessToken", accessToken)
+                .put("refreshToken", refreshToken)
+                .put("tokenType", "Bearer")
+                .put("expiresIn", 3600));
+
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(response.encode());
+      }
 
     } catch (Exception e) {
       LOG.error("Login failed", e);
-      sendError(ctx, 500, "Login failed: " + e.getMessage());
+      handleLoginError(ctx, isFormSubmission, "Login failed: " + e.getMessage(), email, redirectUrl);
+    }
+  }
+
+  /**
+   * 处理登录错误 - 统一错误处理方法
+   */
+  private void handleLoginError(RoutingContext ctx, boolean isFormSubmission, String errorMessage,
+      String email, String redirectUrl) {
+    if (isFormSubmission) {
+      // 表单提交，重定向到登录页面并显示错误
+      StringBuilder loginUrl = new StringBuilder("/sign-in?error=");
+      try {
+        loginUrl.append(java.net.URLEncoder.encode(errorMessage, "UTF-8"));
+
+        if (email != null && !email.isEmpty()) {
+          loginUrl.append("&email=").append(java.net.URLEncoder.encode(email, "UTF-8"));
+        }
+
+        if (redirectUrl != null && !redirectUrl.isEmpty()) {
+          loginUrl.append("&redirect=").append(java.net.URLEncoder.encode(redirectUrl, "UTF-8"));
+        }
+      } catch (Exception e) {
+        LOG.error("Failed to encode URL parameters", e);
+      }
+
+      ctx.response()
+          .setStatusCode(302)
+          .putHeader("Location", loginUrl.toString())
+          .end();
+    } else {
+      // JSON API 请求
+      sendError(ctx, 401, errorMessage);
     }
   }
 
@@ -493,54 +531,26 @@ public class AuthPlugin {
   /**
    * 用户登出
    */
-  @PostMapping("/logout")
-  public void logoutUser(RoutingContext ctx) {
-    String authHeader = ctx.request().getHeader("Authorization");
-    LOG.debug("User logout attempt");
+  @GetMapping("/sign-out")
+  public void signOut(RoutingContext ctx) {
+    // 清除 Cookie
+    ctx.addCookie(Cookie.cookie("auth_token", "")
+        .setMaxAge(0)
+        .setPath("/"));
 
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      sendError(ctx, 401, "Authorization token required");
-      return;
-    }
-
-    try {
-      String token = authHeader.substring(7);
-
-      // 验证并解析token
-      JwtTokenUtil.TokenInfo tokenInfo = jwtTokenUtil.parseToken(token);
-      if (tokenInfo == null) {
-        sendError(ctx, 401, "Invalid token");
-        return;
-      }
-
-      String userId = tokenInfo.getUserId();
-
-      // 将token加入黑名单
-      long remainingTime = jwtTokenUtil.getTokenRemainingTime(token);
-      if (remainingTime > 0) {
-        cacheService.put("token_blacklist:" + token, true, remainingTime);
-      }
-
-      // 清除用户的所有刷新token
-      cacheService.removePattern("refresh_token:" + userId);
-
-      // 清除其他会话信息
-      cacheService.remove("last_login:" + userId);
-      cacheService.remove("login_ip:" + userId);
-
-      LOG.info("User logged out successfully: {}", userId);
-
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("message", "Logout successful");
-
+    // 根据请求类型返回响应
+    String acceptHeader = ctx.request().getHeader("Accept");
+    if (acceptHeader != null && acceptHeader.contains("application/json")) {
+      // API 请求
       ctx.response()
           .putHeader("content-type", "application/json")
-          .end(response.encode());
-
-    } catch (Exception e) {
-      LOG.error("Logout failed", e);
-      sendError(ctx, 500, "Logout failed: " + e.getMessage());
+          .end(new JsonObject().put("success", true).encode());
+    } else {
+      // 页面请求，重定向到登录页
+      ctx.response()
+          .setStatusCode(302)
+          .putHeader("Location", "/sign-in")
+          .end();
     }
   }
 
@@ -581,11 +591,21 @@ public class AuthPlugin {
         return;
       }
 
-      // 生成新的访问令牌
-      String newAccessToken = jwtTokenUtil.generateAccessToken(
-          userId,
-          tokenInfo.getEmail(),
-          tokenInfo.getRole());
+      // 获取完整的用户信息以生成新的访问令牌
+      Optional<User> userOpt = userService.getUserById(userId);
+      String newAccessToken;
+
+      if (userOpt.isPresent()) {
+        // 使用完整用户信息生成token
+        newAccessToken = jwtTokenUtil.generateAccessToken(userOpt.get(), tokenInfo.getEmail());
+      } else {
+        // 降级处理：使用token中的基础信息
+        newAccessToken = jwtTokenUtil.generateAccessToken(
+            userId,
+            tokenInfo.getUserName(),
+            tokenInfo.getEmail(),
+            tokenInfo.getRole());
+      }
 
       LOG.info("Token refreshed successfully for user: {}", userId);
 
@@ -604,73 +624,6 @@ public class AuthPlugin {
     } catch (Exception e) {
       LOG.error("Token refresh failed", e);
       sendError(ctx, 500, "Token refresh failed: " + e.getMessage());
-    }
-  }
-
-  /**
-   * 获取当前用户信息
-   */
-  @GetMapping("/profile")
-  public void getCurrentUser(RoutingContext ctx) {
-    String authHeader = ctx.request().getHeader("Authorization");
-
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      sendError(ctx, 401, "Authorization token required");
-      return;
-    }
-
-    try {
-      String token = authHeader.substring(7);
-
-      // 检查token是否在黑名单中
-      if (cacheService.exists("token_blacklist:" + token)) {
-        sendError(ctx, 401, "Token has been revoked");
-        return;
-      }
-
-      JwtTokenUtil.TokenInfo tokenInfo = jwtTokenUtil.parseToken(token);
-      if (tokenInfo == null) {
-        sendError(ctx, 401, "Invalid token");
-        return;
-      }
-
-      // 获取用户详细信息
-      Optional<User> userOpt = userService.getUserById(tokenInfo.getUserId());
-      if (userOpt.isEmpty()) {
-        sendError(ctx, 404, "User not found");
-        return;
-      }
-
-      User user = userOpt.get();
-
-      // 构建用户信息（不包含敏感数据）
-      Map<String, Object> userInfo = new HashMap<>();
-      userInfo.put("id", user.getId());
-      userInfo.put("name", user.getName());
-      userInfo.put("phone", user.getPhone());
-      userInfo.put("department", user.getDepartment());
-      userInfo.put("role", user.getRole());
-      userInfo.put("status", user.getStatus());
-      userInfo.put("lastLogin", user.getLastLogin());
-      userInfo.put("createdAt", user.getCreatedAt());
-
-      // 获取邮箱信息
-      Optional<UserAccount> emailAccountOpt = accountService.getEmailAccount(user.getId());
-      if (emailAccountOpt.isPresent()) {
-        userInfo.put("email", emailAccountOpt.get().getIdentifier());
-      }
-
-      JsonObject response = new JsonObject()
-          .put("success", true)
-          .put("data", userInfo);
-
-      ctx.response()
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
-
-    } catch (Exception e) {
-      LOG.error("Failed to get current user", e);
-      sendError(ctx, 500, "Failed to get user information: " + e.getMessage());
     }
   }
 
@@ -968,17 +921,27 @@ public class AuthPlugin {
   }
 
   // 认证页面路由
-
   /**
    * 登录页面
    */
-  @GetMapping("/login")
-  @RenderTemplate(value = "login", layout = "auth")
-  @Intercepted({ "TemplateRendering" })
+  @GetMapping("/sign-in")
+  @RenderTemplate(value = "sign-in", layout = "auth")
   public void getLoginPage(RoutingContext ctx) {
     Map<String, Object> data = new HashMap<>();
     data.put("title", "用户登录");
     data.put("redirectUrl", ctx.request().getParam("redirect"));
+
+    // 支持显示错误信息（从查询参数）
+    String error = ctx.request().getParam("error");
+    if (error != null && !error.isEmpty()) {
+      data.put("error", error);
+    }
+
+    // 支持预填邮箱
+    String email = ctx.request().getParam("email");
+    if (email != null && !email.isEmpty()) {
+      data.put("identifier", email);
+    }
 
     ctx.put("viewData", data);
   }
@@ -986,9 +949,8 @@ public class AuthPlugin {
   /**
    * 注册页面
    */
-  @GetMapping("/register")
-  @RenderTemplate(value = "register", layout = "auth")
-  @Intercepted({ "TemplateRendering" })
+  @GetMapping("/sign-up")
+  @RenderTemplate(value = "sign-up", layout = "auth")
   public void getRegisterPage(RoutingContext ctx) {
     Map<String, Object> data = new HashMap<>();
     data.put("title", "用户注册");
@@ -1001,7 +963,6 @@ public class AuthPlugin {
    */
   @GetMapping("/forgot-password")
   @RenderTemplate(value = "forgot-password", layout = "auth")
-  @Intercepted({ "TemplateRendering" })
   public void getForgotPasswordPage(RoutingContext ctx) {
     Map<String, Object> data = new HashMap<>();
     data.put("title", "忘记密码");
@@ -1228,75 +1189,6 @@ public class AuthPlugin {
   // 页面路由
 
   /**
-   * 权限管理主页
-   */
-  @GetMapping("/")
-  @MenuItem(title = "认证概览", parentId = "auth", order = 1, permissions = { "auth.manage" })
-  @RenderTemplate("auth-dashboard")
-  public void getIndexPage(RoutingContext ctx) {
-    try {
-      // 获取统计数据
-      Map<String, Object> data = new HashMap<>();
-      data.put("title", "认证概览");
-      data.put("pluginName", "Auth Plugin");
-      data.put("pluginVersion", "1.0.0");
-
-      // 获取统计信息（如果服务可用）
-      if (loginLogService != null) {
-        // 今日登录次数
-        Map<String, Long> todayStats = loginLogService.getLoginStatistics(24, null);
-        data.put("todayLogins", todayStats.getOrDefault("total", 0L));
-
-        // 高风险登录
-        List<LoginLog> highRiskLogins = loginLogService.getHighRiskLogins(24, 70);
-        data.put("highRiskLogins", highRiskLogins.size());
-      } else {
-        data.put("todayLogins", 0);
-        data.put("highRiskLogins", 0);
-      }
-
-      // 活跃用户（简化实现）
-      if (userService != null) {
-        List<User> allUsers = userService.getAllUsers();
-        long activeUsers = allUsers.stream().filter(User::isActive).count();
-        data.put("activeUsers", activeUsers);
-      } else {
-        data.put("activeUsers", 0);
-      }
-
-      // 被锁定账户
-      if (loginSecurityService != null) {
-        List<LoginAttempt> lockedAccounts = loginSecurityService.getLockedAccounts();
-        data.put("lockedAccounts", lockedAccounts.size());
-      } else {
-        data.put("lockedAccounts", 0);
-      }
-
-      // 最近活动（示例数据）
-      List<Map<String, Object>> recentActivities = new ArrayList<>();
-      data.put("recentActivities", recentActivities);
-
-      // 设置数据，框架自动处理渲染
-      ctx.put("viewData", data);
-    } catch (Exception e) {
-      LOG.error("Failed to prepare auth dashboard data", e);
-      ctx.response()
-          .setStatusCode(500)
-          .end("Internal Server Error");
-    }
-  }
-
-  private Map<String, Object> createActivity(String title, String detail, String statusClass, String icon,
-      String time) {
-    Map<String, Object> activity = new HashMap<>();
-    activity.put("title", title + " - " + detail);
-    activity.put("statusClass", statusClass);
-    activity.put("icon", icon);
-    activity.put("time", time);
-    return activity;
-  }
-
-  /**
    * 权限列表页面
    */
   @GetMapping("/permissions")
@@ -1445,22 +1337,4 @@ public class AuthPlugin {
         .end(error.encode());
   }
 
-  private String renderTemplate(String templateName, Map<String, Object> data) {
-    try (InputStream is = getClass().getResourceAsStream("/auth-plugin/templates/" + templateName)) {
-      if (is == null) {
-        throw new RuntimeException("Template not found: " + templateName);
-      }
-
-      Mustache mustache = mustacheFactory.compile(
-          new java.io.InputStreamReader(is, StandardCharsets.UTF_8),
-          templateName);
-
-      StringWriter writer = new StringWriter();
-      mustache.execute(writer, data).flush();
-      return writer.toString();
-    } catch (Exception e) {
-      LOG.error("Error rendering template: " + templateName, e);
-      throw new RuntimeException("Template rendering error", e);
-    }
-  }
 }

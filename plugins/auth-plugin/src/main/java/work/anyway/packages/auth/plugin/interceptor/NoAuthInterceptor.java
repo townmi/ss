@@ -13,11 +13,11 @@ import work.anyway.packages.auth.plugin.utils.TokenValidator;
  * 简单认证拦截器
  * 使用 JWT token 进行身份验证，设置用户上下文信息
  */
-@InterceptorComponent(name = "SimpleAuth", description = "JWT-based user authentication interceptor", order = 25 // 认证拦截器优先级较高
+@InterceptorComponent(name = "NoAuth", description = "No authentication interceptor", order = 25 // 认证拦截器优先级较高
 )
-public class SimpleAuthInterceptor implements Interceptor {
+public class NoAuthInterceptor implements Interceptor {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SimpleAuthInterceptor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NoAuthInterceptor.class);
 
   @Autowired
   private TokenValidator tokenValidator;
@@ -26,28 +26,18 @@ public class SimpleAuthInterceptor implements Interceptor {
   public boolean preHandle(RoutingContext ctx) {
     String path = ctx.request().path();
 
-    // 跳过不需要认证的路径
-    if (isPublicPath(path)) {
-      LOG.debug("Skipping authentication for public path: {}", path);
-      return true;
-    }
-
     // 提取 token（支持 Authorization 头和 Cookie）
     String token = extractTokenFromRequest(ctx);
 
     if (token == null) {
-      LOG.warn("Access denied - No valid authorization token for path: {}", path);
-      sendUnauthorizedResponse(ctx, "Authorization token required");
-      return false;
+      return true;
     }
 
     // 验证 token
-    TokenValidator.TokenValidationResult result = tokenValidator.validateToken(token);
+    TokenValidator.TokenValidationResult result = tokenValidator.validateTokenWithoutUserCheck(token);
 
     if (result.isFailure()) {
-      LOG.warn("Access denied - Token validation failed for path: {} - {}", path, result.getErrorMessage());
-      sendUnauthorizedResponse(ctx, result.getErrorMessage());
-      return false;
+      return true;
     }
 
     // 验证成功，设置用户上下文信息
@@ -81,7 +71,7 @@ public class SimpleAuthInterceptor implements Interceptor {
 
   @Override
   public String getName() {
-    return "SimpleAuth";
+    return "NoAuth";
   }
 
   @Override
@@ -125,53 +115,5 @@ public class SimpleAuthInterceptor implements Interceptor {
     }
 
     return null;
-  }
-
-  /**
-   * 发送未授权响应
-   */
-  /**
-   * 发送未授权响应（支持页面和 API）
-   */
-  private void sendUnauthorizedResponse(RoutingContext ctx, String message) {
-    String acceptHeader = ctx.request().getHeader("Accept");
-
-    // 根据请求类型返回不同格式的响应
-    if (acceptHeader != null && acceptHeader.contains("text/html")) {
-      // 浏览器请求，清除无效 Cookie 并重定向到登录页面
-      ctx.addCookie(Cookie.cookie("auth_token", "")
-          .setMaxAge(0)
-          .setPath("/"));
-
-      String currentPath = ctx.request().path();
-      String redirectUrl = "/page/auth/sign-in";
-
-      // 添加重定向参数，登录成功后回到原页面
-      if (!isAuthPage(currentPath)) {
-        redirectUrl += "?redirect=" + java.net.URLEncoder.encode(currentPath, java.nio.charset.StandardCharsets.UTF_8);
-      }
-
-      ctx.response()
-          .setStatusCode(302)
-          .putHeader("Location", redirectUrl)
-          .end();
-    } else {
-      // API 请求，返回 JSON 错误响应
-      String jsonResponse = String.format(
-          "{\"success\":false,\"error\":\"Unauthorized\",\"message\":\"%s\"}",
-          message);
-
-      ctx.response()
-          .setStatusCode(401)
-          .putHeader("Content-Type", "application/json")
-          .end(jsonResponse);
-    }
-  }
-
-  /**
-   * 检查是否为认证相关页面
-   */
-  private boolean isAuthPage(String path) {
-    return path.startsWith("/page/auth/");
   }
 }

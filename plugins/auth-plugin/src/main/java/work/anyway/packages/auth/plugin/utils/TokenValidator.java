@@ -8,7 +8,6 @@ import work.anyway.interfaces.cache.CacheService;
 import work.anyway.interfaces.user.User;
 import work.anyway.interfaces.user.UserService;
 
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -76,6 +75,48 @@ public class TokenValidator {
       }
 
       // 6. 验证成功，返回用户信息
+      return TokenValidationResult.success(tokenInfo);
+
+    } catch (Exception e) {
+      LOG.error("Token validation error", e);
+      return TokenValidationResult.failure("Token validation failed: " + e.getMessage());
+    }
+  }
+
+  /**
+   * 验证 token 但不进行用户数据库查询（避免阻塞事件循环）
+   * 
+   * @param token JWT token
+   * @return 验证结果
+   */
+  public TokenValidationResult validateTokenWithoutUserCheck(String token) {
+    if (token == null || token.trim().isEmpty()) {
+      return TokenValidationResult.failure("Token is required");
+    }
+
+    try {
+      // 1. JWT 格式和签名验证
+      if (!jwtTokenUtil.validateToken(token)) {
+        return TokenValidationResult.failure("Invalid token format or signature");
+      }
+
+      // 2. 解析 token 信息
+      JwtTokenUtil.TokenInfo tokenInfo = jwtTokenUtil.parseToken(token);
+      if (tokenInfo == null) {
+        return TokenValidationResult.failure("Failed to parse token");
+      }
+
+      // 3. 检查 token 是否过期
+      if (tokenInfo.isExpired()) {
+        return TokenValidationResult.failure("Token has expired");
+      }
+
+      // 4. 检查 token 黑名单（如果缓存是非阻塞的）
+      if (cacheService.exists("token_blacklist:" + token)) {
+        return TokenValidationResult.failure("Token has been revoked");
+      }
+
+      // 跳过用户数据库查询，只返回 token 信息
       return TokenValidationResult.success(tokenInfo);
 
     } catch (Exception e) {

@@ -68,13 +68,13 @@ public class TemplateRenderingInterceptor implements Interceptor {
   @Qualifier("defaultThemeProcessor")
   public void setTemplateProcessor(TemplateProcessor templateProcessor) {
     this.templateProcessor = templateProcessor;
-    LOG.info("TemplateProcessor injected: {}", templateProcessor != null);
+    LOG.debug("TemplateProcessor injected: {}", templateProcessor != null);
   }
 
   @Autowired(required = false)
   public void setThemeManager(ThemeManager themeManager) {
     this.themeManager = themeManager;
-    LOG.info("ThemeManager injected: {}", themeManager != null);
+    LOG.debug("ThemeManager injected: {}", themeManager != null);
   }
 
   @Autowired
@@ -85,7 +85,7 @@ public class TemplateRenderingInterceptor implements Interceptor {
       try {
         this.templateProcessor = applicationContext.getBean("defaultThemeProcessor", TemplateProcessor.class);
       } catch (Exception e) {
-        LOG.info("No defaultThemeProcessor bean found: {}", e.getMessage());
+        LOG.debug("No defaultThemeProcessor bean found: {}", e.getMessage());
       }
     }
   }
@@ -97,7 +97,7 @@ public class TemplateRenderingInterceptor implements Interceptor {
 
   @Override
   public boolean preHandle(RoutingContext ctx) {
-    LOG.info("preHandle called for path: {}", ctx.request().path());
+    LOG.debug("preHandle called for path: {}", ctx.request().path());
 
     // 标记主题处理器是否可用
     if (templateProcessor != null) {
@@ -109,7 +109,7 @@ public class TemplateRenderingInterceptor implements Interceptor {
 
   @Override
   public void postHandle(RoutingContext ctx, Object result) {
-    LOG.info("postHandle called for path: {}", ctx.request().path());
+    LOG.debug("postHandle called for path: {}", ctx.request().path());
 
     // 检查是否有 @RenderTemplate 注解
     Method method = ctx.get(CTX_HANDLER_METHOD);
@@ -133,7 +133,7 @@ public class TemplateRenderingInterceptor implements Interceptor {
    * 处理手动渲染（兼容现有代码）
    */
   private void handleManualRendering(RoutingContext ctx) {
-    LOG.info("handleManualRendering called for path: {}", ctx.request().path());
+    LOG.debug("handleManualRendering called for path: {}", ctx.request().path());
     String renderedContent = ctx.get(CTX_RENDERED_CONTENT);
     if (renderedContent == null) {
       return;
