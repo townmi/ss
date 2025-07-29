@@ -24,6 +24,7 @@ public class MainVerticle extends AbstractVerticle {
 
   private static final Logger LOG = LoggerFactory.getLogger(MainVerticle.class);
   private AnnotationConfigApplicationContext springContext;
+  private DevModeFileWatcher fileWatcher;
 
   @Override
   public void start(Promise<Void> startPromise) {
@@ -43,6 +44,9 @@ public class MainVerticle extends AbstractVerticle {
       // 注册路由
       registerRoutes(router);
 
+      // 启动开发模式文件监控（如果启用）
+      startDevModeWatcher();
+
       // 启动 HTTP 服务器
       startHttpServer(router, startPromise);
 
@@ -54,6 +58,11 @@ public class MainVerticle extends AbstractVerticle {
 
   @Override
   public void stop() throws Exception {
+    // 停止文件监控
+    if (fileWatcher != null) {
+      fileWatcher.stopWatching();
+    }
+
     if (springContext != null) {
       springContext.close();
     }
@@ -99,6 +108,70 @@ public class MainVerticle extends AbstractVerticle {
   private ClassLoader loadExternalJars() throws Exception {
     List<URL> urls = new ArrayList<>();
 
+    // 检查是否为开发模式
+    boolean devMode = ConfigLoader.getBoolean(CONFIG_DEV_MODE, false);
+
+    if (devMode) {
+      LOG.info("Development mode enabled - loading classes from source directories");
+      loadDevelopmentClasses(urls);
+    } else {
+      LOG.info("Production mode - loading JAR files");
+      loadProductionJars(urls);
+    }
+
+    // 创建 URLClassLoader
+    return new URLClassLoader(
+        urls.toArray(new URL[0]),
+        Thread.currentThread().getContextClassLoader());
+  }
+
+  private void loadDevelopmentClasses(List<URL> urls) throws Exception {
+    // 加载接口类（必须最先加载，因为服务和插件都依赖它们）
+    String interfacesClassesPattern = ConfigLoader.getString(CONFIG_DEV_INTERFACES_CLASSES_DIR,
+        DEFAULT_DEV_INTERFACES_CLASSES_DIR);
+    loadClassDirectories(urls, interfacesClassesPattern, "interfaces");
+
+    // 加载服务类
+    String servicesClassesPattern = ConfigLoader.getString(CONFIG_DEV_SERVICES_CLASSES_DIR,
+        DEFAULT_DEV_SERVICES_CLASSES_DIR);
+    loadClassDirectories(urls, servicesClassesPattern, "services");
+
+    // 加载插件类
+    String pluginsClassesPattern = ConfigLoader.getString(CONFIG_DEV_PLUGINS_CLASSES_DIR,
+        DEFAULT_DEV_PLUGINS_CLASSES_DIR);
+    loadClassDirectories(urls, pluginsClassesPattern, "plugins");
+  }
+
+  private void loadClassDirectories(List<URL> urls, String pattern, String type) throws Exception {
+    // 处理通配符模式，如 "services/*/target/classes"
+    if (pattern.contains("*")) {
+      String basePath = pattern.substring(0, pattern.indexOf("*"));
+      String suffix = pattern.substring(pattern.indexOf("*") + 1);
+
+      File baseDir = new File(basePath);
+      if (baseDir.exists() && baseDir.isDirectory()) {
+        File[] subdirs = baseDir.listFiles(File::isDirectory);
+        if (subdirs != null) {
+          for (File subdir : subdirs) {
+            File classesDir = new File(subdir, suffix);
+            if (classesDir.exists() && classesDir.isDirectory()) {
+              urls.add(classesDir.toURI().toURL());
+              LOG.info("Loaded {} classes from: {}", type, classesDir.getAbsolutePath());
+            }
+          }
+        }
+      }
+    } else {
+      // 直接路径
+      File classesDir = new File(pattern);
+      if (classesDir.exists() && classesDir.isDirectory()) {
+        urls.add(classesDir.toURI().toURL());
+        LOG.info("Loaded {} classes from: {}", type, classesDir.getAbsolutePath());
+      }
+    }
+  }
+
+  private void loadProductionJars(List<URL> urls) throws Exception {
     // 加载服务 JARs
     String serviceDir = ConfigLoader.getString(CONFIG_SERVICES_DIR, DEFAULT_SERVICES_DIR);
     File servicesDirectory = new File(serviceDir);
@@ -126,11 +199,6 @@ public class MainVerticle extends AbstractVerticle {
         }
       }
     }
-
-    // 创建 URLClassLoader
-    return new URLClassLoader(
-        urls.toArray(new URL[0]),
-        Thread.currentThread().getContextClassLoader());
   }
 
   private void registerRoutes(Router router) {
@@ -160,5 +228,32 @@ public class MainVerticle extends AbstractVerticle {
             startPromise.fail(result.cause());
           }
         });
+  }
+
+  private void startDevModeWatcher() {
+    boolean devMode = ConfigLoader.getBoolean(CONFIG_DEV_MODE, false);
+    boolean hotReload = ConfigLoader.getBoolean(CONFIG_DEV_HOT_RELOAD, true);
+
+    if (devMode && hotReload) {
+      try {
+        fileWatcher = new DevModeFileWatcher(vertx, springContext);
+
+        // 获取要监控的目录
+        String interfacesPattern = ConfigLoader.getString(CONFIG_DEV_INTERFACES_CLASSES_DIR,
+            DEFAULT_DEV_INTERFACES_CLASSES_DIR);
+        String servicesPattern = ConfigLoader.getString(CONFIG_DEV_SERVICES_CLASSES_DIR,
+            DEFAULT_DEV_SERVICES_CLASSES_DIR);
+        String pluginsPattern = ConfigLoader.getString(CONFIG_DEV_PLUGINS_CLASSES_DIR, DEFAULT_DEV_PLUGINS_CLASSES_DIR);
+
+        fileWatcher.startWatching(interfacesPattern, servicesPattern, pluginsPattern);
+        LOG.info("Hot reload file watcher started in development mode");
+      } catch (Exception e) {
+        LOG.error("Failed to start development mode file watcher", e);
+      }
+    } else if (devMode) {
+      LOG.info("Development mode enabled (hot reload disabled)");
+    } else {
+      LOG.debug("Production mode - file watcher disabled");
+    }
   }
 }

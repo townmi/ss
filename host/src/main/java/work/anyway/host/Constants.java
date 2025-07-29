@@ -34,4 +34,16 @@ public final class Constants {
   public static final String LOG_LOADING_FROM = "Loading {} from: {}";
   public static final String LOG_FOUND_JAR = "Found {} JAR: {}";
   public static final String LOG_HTTP_SERVER_STARTED = "HTTP server started on {}:{}";
+
+  // 开发模式配置
+  public static final String CONFIG_DEV_MODE = "dev.mode";
+  public static final String CONFIG_DEV_SERVICES_CLASSES_DIR = "dev.services.classes.directory";
+  public static final String CONFIG_DEV_PLUGINS_CLASSES_DIR = "dev.plugins.classes.directory";
+  public static final String CONFIG_DEV_INTERFACES_CLASSES_DIR = "dev.interfaces.classes.directory";
+  public static final String CONFIG_DEV_HOT_RELOAD = "dev.hot.reload";
+
+  // 默认开发模式目录
+  public static final String DEFAULT_DEV_SERVICES_CLASSES_DIR = "services/*/target/classes";
+  public static final String DEFAULT_DEV_PLUGINS_CLASSES_DIR = "plugins/*/target/classes";
+  public static final String DEFAULT_DEV_INTERFACES_CLASSES_DIR = "interfaces/*/target/classes";
 }

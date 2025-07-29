@@ -21,7 +21,7 @@ public class ConfigLoader {
 
   // 可配置的系统属性前缀
   private static final Set<String> SYSTEM_PROPERTY_PREFIXES = new HashSet<>(Arrays.asList(
-      "http.", "plugins.", "vertx.", "service.", "datasource.", "spring.", "login."));
+      "http.", "plugins.", "vertx.", "service.", "datasource.", "spring.", "login.", "dev."));
 
   static {
     loadProperties();
